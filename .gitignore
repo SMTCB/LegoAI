@@ -1,0 +1,25 @@
+# System
+.DS_Store
+Thumbs.db
+
+# n8n local data
+database.sqlite*
+binaryData/
+config/
+ssh/
+crash.journal
+n8nEventLog.log
+.n8n/
+
+# Node
+node_modules/
+dist/
+.env
+.env.local
+
+# Supabase
+supabase/.temp/
+
+# IDE
+.vscode/
+.idea/
