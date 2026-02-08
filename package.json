@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "private": true,
     "scripts": {
-        "start": "echo 'Deploy via Vercel'"
+        "start": "echo 'Deploy via Vercel'",
+        "build": "npm run build --workspace=web-app"
     },
     "workspaces": [
         "web-app"
