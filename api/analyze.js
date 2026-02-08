@@ -106,6 +106,9 @@ module.exports = async (req, res) => {
                 });
                 const partImgUrl = detailsRes.data.part_img_url;
 
+                // CRITICAL FIX: Attach image to the part object so it appears in the "Scanned Parts" list
+                part.part_img_url = partImgUrl;
+
                 // 2. Fetch Sets (for matching)
                 const setsUrl = `https://rebrickable.com/api/v3/lego/parts/${part.part_num}/colors/${part.color_id}/sets/`;
                 const setsRes = await axios.get(setsUrl, {
