@@ -40,7 +40,8 @@ export function AppProvider({ children }) {
             });
 
             if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText}`);
+                const errorText = await response.text();
+                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText.substring(0, 100)}`);
             }
 
             const data = await response.json();
