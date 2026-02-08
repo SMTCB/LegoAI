@@ -44,9 +44,8 @@ module.exports = async (req, res) => {
         const mimeType = image.split(';')[0] || 'image/jpeg';
         const mimeTypeClean = mimeType.split(':')[1] || mimeType;
 
-        // Defaulting to "gemini-1.5-flash" as it is usually the most available/free.
-        // If this fails, the user will use list_models to find the right one.
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // Using gemini-2.0-flash as confirmed by user's model list
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
         const prompt = `Identify all LEGO bricks in this image. Return ONLY a valid JSON array. Each item must have:
         - \`part_num\`: The specific Lego element ID (e.g. '3001').
