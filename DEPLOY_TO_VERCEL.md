@@ -20,10 +20,11 @@
     - Click **Import**.
 
 3.  **Configuring the Project**:
-    - **Framework Preset**: Vercel should auto-detect "Vite" for the frontend.
+    - **Framework Preset**: Vercel should auto-detect "Vite". If not, select **Vite**.
     - **Root Directory**: Leave as `./` (Root).
-    - **Build Command**: `cd web-app && npm install && npm run build` (Important: We need to tell Vercel to build the subdir).
-    - **Output Directory**: `web-app/dist`.
+    - **Build & Output Settings** (Expand this section):
+        - **Build Command**: Toggle **OVERRIDE** to ON. Enter: `cd web-app && npm install && npm run build`
+        - **Output Directory**: Toggle **OVERRIDE** to ON. Enter: `web-app/dist`
     - **Environment Variables**:
       Add the following keys from your local `.env` files:
       - `GEMINI_API_KEY`
