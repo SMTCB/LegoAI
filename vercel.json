@@ -1,15 +1,7 @@
 {
     "rewrites": [
         {
-            "source": "/api/hello",
-            "destination": "/api/hello.js"
-        },
-        {
-            "source": "/api/analyze",
-            "destination": "/api/analyze.js"
-        },
-        {
-            "source": "/(.*)",
+            "source": "/((?!api/.*).*)",
             "destination": "/web-app/$1"
         }
     ]
