@@ -47,8 +47,24 @@ export function AppProvider({ children }) {
         setError(null);
     };
 
-    // Step 1: Analyze Image (Vision Only)
-    const processImage = async (imageDataUrl) => {
+    // Batch State
+    const [currentBatchImages, setCurrentBatchImages] = useState([]);
+    const [currentBatchResults, setCurrentBatchResults] = useState([]);
+
+    const addToBatch = (imageDataUrl) => {
+        setCurrentBatchImages(prev => [...prev, imageDataUrl]);
+    };
+
+    const clearCurrentBatch = () => {
+        setCurrentBatchImages([]);
+        setCurrentBatchResults([]);
+        setScanStatus('idle');
+    };
+
+    // Step 1: Analyze Batch (Sends ALL photos of the pile)
+    const analyzeBatch = async () => {
+        if (currentBatchImages.length === 0) return;
+
         setScanStatus('scanning');
         setError(null);
         try {
@@ -57,7 +73,7 @@ export function AppProvider({ children }) {
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: imageDataUrl })
+                body: JSON.stringify({ images: currentBatchImages })
             });
 
             if (!response.ok) {
@@ -72,14 +88,22 @@ export function AppProvider({ children }) {
                 id: crypto.randomUUID()
             }));
 
-            addToSession(partsWithIds);
-            setScanStatus('success'); // Ready for next scan
+            // Store results in "Review" state, NOT main collection yet
+            setCurrentBatchResults(partsWithIds);
+            setScanStatus('review');
 
         } catch (err) {
             console.error("Scan Error:", err);
             setError(err.message);
             setScanStatus('error');
         }
+    };
+
+    // Commit the reviewed batch to the main collection
+    const commitBatch = () => {
+        addToSession(currentBatchResults);
+        clearCurrentBatch(); // Reset for the NEXT pile
+        setScanStatus('idle');
     };
 
     // Step 2: Find Builds (Logic Only)
@@ -121,7 +145,13 @@ export function AppProvider({ children }) {
             builds,
             scanStatus,
             error,
-            processImage,
+            processImage: analyzeBatch, // Keeping name for compatibility or refactor? Let's rename in App.jsx
+            addToBatch,
+            analyzeBatch,
+            commitBatch,
+            clearCurrentBatch,
+            currentBatchImages,
+            currentBatchResults,
             findBuilds,
             clearSession,
             undoLastScan,

@@ -29,15 +29,24 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { image } = req.body;
+        const { images } = req.body; // Expecting an array of base64 strings
 
-        if (!image) {
-            return res.status(400).json({ error: 'No image data provided' });
+        if (!images || !Array.isArray(images) || images.length === 0) {
+            return res.status(400).json({ error: 'No images provided' });
         }
 
-        const base64Data = image.split(',')[1] || image;
-        const mimeType = image.split(';')[0] || 'image/jpeg';
-        const mimeTypeClean = mimeType.split(':')[1] || mimeType;
+        // Prepare image parts for Gemini
+        const imageParts = images.map(img => {
+            const base64Data = img.split(',')[1] || img;
+            const mimeType = img.split(';')[0] || 'image/jpeg';
+            const mimeTypeClean = mimeType.split(':')[1] || mimeType;
+            return {
+                inlineData: {
+                    data: base64Data,
+                    mimeType: mimeTypeClean
+                }
+            };
+        });
 
         // Using gemini-2.0-flash with loose safety settings
         const model = genAI.getGenerativeModel({
@@ -50,20 +59,19 @@ module.exports = async (req, res) => {
             ]
         });
 
-        // Advanced System Prompt for Lego Identification using AFOL terminology
+        // Advanced System Prompt for Multi-View Analysis
         const prompt = `You are an expert LEGO Part Identifier.
-        Analyze the image to identify the specific Lego parts.
+        You are viewing multiple photos of the SAME batch of Lego parts from different angles.
         
         CRITICAL INSTRUCTIONS:
-        1. **Count Studs**: For every brick/plate, count the studs (e.g., 2x4, 1x2, 1x1).
-        2. **Identify Height**: Distinguish between:
-           - "Brick" (Tall)
-           - "Plate" (Flat, 1/3 height of brick)
-           - "Tile" (Flat, smooth top, no studs)
-           - "Slope" (Angled)
-           - "SNOT" (Studs Not On Top)
-        3. **Estimate Color**: Use standard Lego color names.
-        4. **Angle Check**: Look for depth cues to tell Bricks from Plates. If top-down, default to Brick unless obvious.
+        1. **Combine Views**: Use the multiple angles to determine the 3D shape (Height/Depth).
+           - If Photo 1 is top-down, use Photo 2 (side view) to check if it's a Brick (Tall) or Plate (Flat).
+        2. **Deduplicate**: These photos show the SAME objects. Do NOT double count. 
+           - If you see 3 red bricks in Photo A and the same 3 red bricks in Photo B, the total is 3, NOT 6.
+           - Only count unique objects.
+        3. **Count Studs & Identify**: Accurate stud count (e.g. 2x4) is paramount.
+        
+        4. **Estimate Color**: Use standard Lego color names.
         
         RETURN ONLY A JSON ARRAY. Format:
         [
@@ -79,7 +87,7 @@ module.exports = async (req, res) => {
 
         const result = await model.generateContent([
             prompt,
-            { inlineData: { data: base64Data, mimeType: mimeTypeClean } }
+            ...imageParts
         ]);
 
         const responseText = result.response.text();
