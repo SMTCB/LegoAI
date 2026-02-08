@@ -3,16 +3,17 @@ import React, { createContext, useContext, useState } from 'react';
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-    const [parts, setParts] = useState([]);
+    const [parts, setParts] = useState([]); // This is now the Session List
     const [builds, setBuilds] = useState([]);
-    const [scanStatus, setScanStatus] = useState('idle'); // idle, scanning, matching, upload_success, error
+    const [scanStatus, setScanStatus] = useState('idle'); // idle, scanning, success, matching, matching_error
     const [error, setError] = useState(null);
 
-    // Helper to aggregate parts (as per logic requirements)
-    const addParts = (newParts) => {
+    // Add new parts to the existing list (aggregating quantities)
+    const addToSession = (newParts) => {
         setParts(prev => {
             const updated = [...prev];
             newParts.forEach(newPart => {
+                // Fuzzy match based on Part Num + Color
                 const index = updated.findIndex(p => p.part_num === newPart.part_num && p.color_id === newPart.color_id);
                 if (index >= 0) {
                     updated[index] = { ...updated[index], quantity: updated[index].quantity + newPart.quantity };
@@ -28,11 +29,20 @@ export function AppProvider({ children }) {
         setParts(prev => prev.filter(p => p.id !== id));
     };
 
+    const clearSession = () => {
+        setParts([]);
+        setBuilds([]);
+        setScanStatus('idle');
+        setError(null);
+    };
+
+    // Step 1: Analyze Image (Vision Only)
     const processImage = async (imageDataUrl) => {
         setScanStatus('scanning');
         setError(null);
         try {
-            const apiUrl = import.meta.env.VITE_API_URL || '/api/analyze';
+            const apiUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/analyze_image` : '/api/analyze_image';
+
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -40,31 +50,51 @@ export function AppProvider({ children }) {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText.substring(0, 100)}`);
+                throw new Error(`Scan Failed: ${response.statusText}`);
             }
 
             const data = await response.json();
+            if (data.error) throw new Error(data.error);
 
-            // Handle potential error returned from backend (e.g., parsing failure)
-            if (data.error) {
-                throw new Error(data.error);
-            }
-
-            // Backend returns: { identified_parts: [], suggested_builds: [] }
-            // Must assign IDs to parts for React keys if not present (backend might not send unique IDs)
             const partsWithIds = (data.identified_parts || []).map(p => ({
                 ...p,
-                id: p.id || crypto.randomUUID() // Ensure unique ID for UI
+                id: crypto.randomUUID()
             }));
 
-            addParts(partsWithIds);
-            setBuilds(data.suggested_builds || []);
-            setScanStatus('success');
+            addToSession(partsWithIds);
+            setScanStatus('success'); // Ready for next scan
 
         } catch (err) {
             console.error("Scan Error:", err);
-            setError(`Error: ${err.message || "Failed to process image"}. Check Vercel logs if persistent.`);
+            setError(err.message);
+            setScanStatus('error');
+        }
+    };
+
+    // Step 2: Find Builds (Logic Only)
+    const findBuilds = async () => {
+        if (parts.length === 0) return;
+
+        setScanStatus('matching');
+        setError(null);
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/find_builds` : '/api/find_builds';
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ parts })
+            });
+
+            if (!response.ok) throw new Error("Matching Failed");
+
+            const data = await response.json();
+            setBuilds(data.suggested_builds || []);
+            setScanStatus('matching_success');
+
+        } catch (err) {
+            console.error("Matching Error:", err);
+            setError(err.message);
             setScanStatus('error');
         }
     };
@@ -81,6 +111,8 @@ export function AppProvider({ children }) {
             scanStatus,
             error,
             processImage,
+            findBuilds,
+            clearSession,
             resetScan,
             removePart
         }}>

@@ -6,16 +6,18 @@ import PartsCatalog from './components/PartsCatalog';
 import { AppProvider, useApp } from './context/AppContext';
 
 function Main() {
-  const { scanStatus, builds, parts, processImage, resetScan, removePart, error } = useApp();
-  const [activeTab, setActiveTab] = useState('scan'); // 'scan', 'catalog'
+  const { scanStatus, builds, parts, processImage, findBuilds, clearSession, removePart, error, resetScan } = useApp();
+  const [activeTab, setActiveTab] = useState('scan');
 
   const handleCapture = (imageData) => {
     processImage(imageData);
   };
 
+  // 1. Catalog View
   if (activeTab === 'catalog') {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center shadow-sm sticky top-0 z-10">
           <button onClick={() => setActiveTab('scan')} className="p-2 mr-2 hover:bg-gray-100 rounded-full">
             <ArrowLeft size={20} />
@@ -31,115 +33,99 @@ function Main() {
     );
   }
 
-  // Scan Logic View
+  // 2. Builds View (Matching Success)
+  if (scanStatus === 'matching_success') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm sticky top-0 z-10">
+          <button onClick={resetScan} className="flex items-center text-gray-600 hover:text-gray-900">
+            <ArrowLeft size={20} className="mr-1" /> Back to Scan
+          </button>
+          <span className="font-bold text-green-600 text-sm">Builds Found!</span>
+        </header>
+        <main className="flex-1 overflow-y-auto p-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {builds.map(build => (
+              <div key={build.set_id} className="h-full">
+                <BuildCard build={build} />
+              </div>
+            ))}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // 3. Main Scanning / Session View
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col relative overflow-hidden">
-      {scanStatus === 'idle' || scanStatus === 'error' ? (
-        <>
-          <div className="flex-1 relative">
-            <CameraCapture onCapture={handleCapture} />
 
-            {/* Overlay UI */}
-            <div className="absolute top-4 right-4 z-20">
-              <button
-                onClick={() => setActiveTab('catalog')}
-                className="bg-black/50 backdrop-blur-md text-white p-3 rounded-full hover:bg-black/70 transition-colors border border-white/20"
-              >
-                <Layers size={24} />
-              </button>
-            </div>
-
-            <div className="absolute top-4 left-4 z-20">
-              <div className="bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold border border-white/20 mb-2">
-                Master Builder AI
-              </div>
-              <div className="bg-black/40 backdrop-blur-sm text-white/80 px-3 py-2 rounded-lg text-xs max-w-[200px] border border-white/10">
-                <p className="font-bold mb-1">💡 Pro Tips:</p>
-                <ul className="list-disc pl-3 space-y-1">
-                  <li>Spread parts out clearly.</li>
-                  <li>Use good lighting.</li>
-                  <li>Avoid overlapping bricks.</li>
-                </ul>
-              </div>
-            </div>
-
-            {checkError(error)}
-
-          </div>
-        </>
-      ) : scanStatus === 'scanning' || scanStatus === 'matching' ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-white bg-gray-900 p-8">
+      {/* Loading States */}
+      {scanStatus === 'scanning' && (
+        <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center text-white">
           <Loader2 size={64} className="animate-spin text-blue-500 mb-6" />
-          <h2 className="text-2xl font-bold mb-2">Analyzing Bricks...</h2>
-          <p className="text-gray-400 text-center max-w-xs">
-            Identifying parts and searching Rebrickable for matches.
-          </p>
+          <h2 className="text-2xl font-bold mb-2">Identifying Parts...</h2>
         </div>
-      ) : scanStatus === 'success' ? (
-        <div className="flex-1 bg-gray-50 flex flex-col h-full overflow-hidden">
-          <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm sticky top-0 z-10">
-            <button onClick={resetScan} className="flex items-center text-gray-600 hover:text-gray-900">
-              <ArrowLeft size={20} className="mr-1" /> Scan Again
-            </button>
-            <span className="font-bold text-green-600 text-sm">Analysis Complete</span>
-          </header>
+      )}
 
-          <main className="flex-1 overflow-y-auto p-4 space-y-6">
-            <section>
-              <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
-                <Grid size={18} className="mr-2 text-blue-600" /> Suggested Builds
-              </h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {builds.map(build => (
-                  <div key={build.set_id} className="h-full">
-                    <BuildCard build={build} />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="pt-4 border-t border-gray-200">
-              <h2 className="text-lg font-bold text-gray-800 mb-3">Scanned Parts</h2>
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden text-sm">
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50 text-gray-500">
-                    <tr>
-                      <th className="p-3">Part</th>
-                      <th className="p-3 text-right">Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {parts.slice(-5).map(p => ( // Show last 5
-                      <tr key={p.id} className="border-t border-gray-100">
-                        <td className="p-3 flex items-center gap-2">
-                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center overflow-hidden border border-gray-200">
-                            {p.part_img_url ? (
-                              <img src={p.part_img_url} alt={p.name} className="w-full h-full object-contain" />
-                            ) : (
-                              <div className="w-4 h-4 bg-gray-300 rounded" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{p.name}</div>
-                            <div className="text-xs text-gray-400">{p.part_num}</div>
-                          </div>
-                        </td>
-                        <td className="p-3 text-right font-mono">{p.quantity}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <button
-                  onClick={() => setActiveTab('catalog')}
-                  className="w-full p-3 text-center text-blue-600 hover:bg-blue-50 font-medium transition-colors"
-                >
-                  View All Scanned Parts
-                </button>
-              </div>
-            </section>
-          </main>
+      {scanStatus === 'matching' && (
+        <div className="absolute inset-0 z-50 bg-black/80 flex flex-col items-center justify-center text-white">
+          <Loader2 size={64} className="animate-spin text-purple-500 mb-6" />
+          <h2 className="text-2xl font-bold mb-2">Finding Builds...</h2>
+          <p className="text-gray-400">Checking {parts.length} parts against Rebrickable...</p>
         </div>
-      ) : null}
+      )}
+
+      {/* Main Camera UI */}
+      <div className="flex-1 relative">
+        <CameraCapture onCapture={handleCapture} />
+
+        {/* Top Controls */}
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            onClick={() => setActiveTab('catalog')}
+            className="bg-black/50 backdrop-blur-md text-white p-3 rounded-full hover:bg-black/70 transition-colors border border-white/20 relative"
+          >
+            <Layers size={24} />
+            {parts.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-bold">
+                {parts.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Tips Overlay */}
+        <div className="absolute top-4 left-4 z-20 hidden sm:block">
+          <div className="bg-black/40 backdrop-blur-sm text-white/80 px-3 py-2 rounded-lg text-xs max-w-[200px] border border-white/10">
+            <p className="font-bold mb-1">💡 Session Mode:</p>
+            <ul className="list-disc pl-3 space-y-1">
+              <li>Take multiple photos.</li>
+              <li>Angle at 45° for depth.</li>
+              <li>Click "Find Builds" when done.</li>
+            </ul>
+          </div>
+        </div>
+
+        {checkError(error)}
+
+        {/* Session Action Bar (Bottom) */}
+        {scanStatus === 'success' || scanStatus === 'idle' || scanStatus === 'error' ? (
+          <div className="absolute bottom-8 left-0 right-0 z-30 flex justify-center items-center gap-4 px-4 ptr-events-none">
+            {/* Find Builds Button (Only if parts exist) */}
+            {parts.length > 0 && (
+              <button
+                onClick={findBuilds}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-full shadow-xl flex items-center gap-2 font-bold text-lg animate-in slide-in-from-bottom-5 fade-in duration-300 hover:scale-105 transition-transform"
+              >
+                <Grid size={24} />
+                Find Builds ({parts.length})
+              </button>
+            )}
+          </div>
+        ) : null}
+
+      </div>
     </div>
   );
 }
@@ -147,7 +133,7 @@ function Main() {
 function checkError(err) {
   if (!err) return null;
   return (
-    <div className="absolute bottom-20 left-4 right-4 z-30">
+    <div className="absolute bottom-24 left-4 right-4 z-30">
       <div className="bg-red-500 text-white p-3 rounded-lg shadow-lg text-center font-medium opacity-90">
         {err}
       </div>
