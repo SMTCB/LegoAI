@@ -1,86 +1,99 @@
 import React from 'react';
+import { Trash2, Check, Clock, Package, Home } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export default function CollectionView() {
+export default function CollectionView({ onHome }) {
     const { myKits, loadingKits, updateKitStatus, deleteKit } = useApp();
 
-    const activeKits = myKits.filter(k => k.status === 'todo');
+    const activeKits = myKits.filter(k => k.status !== 'done');
     const doneKits = myKits.filter(k => k.status === 'done');
 
-    if (loadingKits) return <div className="p-4">Loading collection...</div>;
+    const KitCard = ({ kit }) => (
+        <div className="bg-white p-4 rounded-xl border-2 border-gray-100 shadow-sm flex gap-4 items-center group relative overflow-hidden">
+            <div className="w-20 h-20 bg-gray-50 rounded-lg flex items-center justify-center p-2 flex-shrink-0">
+                <img src={kit.set_img_url} className="max-w-full max-h-full object-contain" />
+            </div>
+            <div className="flex-1 min-w-0">
+                <h3 className="font-black text-gray-900 leading-tight truncate">{kit.set_name || 'Unknown Set'}</h3>
+                <p className="text-xs text-gray-500 font-bold mb-2">Set #{kit.set_id}</p>
+
+                <div className="flex gap-2">
+                    {kit.status !== 'done' ? (
+                        <button
+                            onClick={() => updateKitStatus(kit.id, 'done')}
+                            className="bg-green-100 text-green-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-green-200"
+                        >
+                            <Check size={12} strokeWidth={3} /> Mark Done
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => updateKitStatus(kit.id, 'wip')}
+                            className="bg-yellow-100 text-yellow-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-yellow-200"
+                        >
+                            <Clock size={12} strokeWidth={3} /> Mark WIP
+                        </button>
+                    )}
+
+                    <button
+                        onClick={() => deleteKit(kit.id)}
+                        className="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100"
+                    >
+                        <Trash2 size={12} strokeWidth={2.5} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col pb-24">
-            <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10">
-                <h1 className="text-2xl font-bold text-gray-900">My Collection</h1>
+        <div className="min-h-screen bg-gray-50 flex flex-col pb-24 font-nunito">
+            <header className="bg-white border-b border-gray-200 px-4 py-4 sticky top-0 z-10 flex items-center gap-3">
+                <button onClick={onHome} className="bg-gray-100 p-2 rounded-lg text-gray-800 hover:bg-gray-200">
+                    <Home size={20} />
+                </button>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">My Collection</h1>
             </header>
 
-            <main className="flex-1 p-4 space-y-6 overflow-y-auto">
+            <main className="flex-1 p-4 space-y-8 overflow-y-auto">
 
-                {/* Active Section */}
-                <section>
-                    <h2 className="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                        Work in Progress
-                    </h2>
-                    {activeKits.length === 0 ? (
-                        <div className="bg-white rounded-xl p-6 text-center text-gray-400 border border-gray-100 border-dashed">
-                            No active builds. Go find some!
-                        </div>
-                    ) : (
+                {loadingKits && (
+                    <div className="animate-pulse space-y-4">
+                        <div className="h-24 bg-gray-200 rounded-xl"></div>
+                        <div className="h-24 bg-gray-200 rounded-xl"></div>
+                    </div>
+                )}
+
+                {!loadingKits && myKits.length === 0 && (
+                    <div className="text-center mt-20 opacity-50">
+                        <Package size={64} className="mx-auto mb-4 text-gray-300" />
+                        <p className="font-bold text-gray-400">Your collection is empty.</p>
+                        <p className="text-sm text-gray-400">Scan bricks or search sets to add some!</p>
+                    </div>
+                )}
+
+                {/* WIP Section */}
+                {activeKits.length > 0 && (
+                    <section>
+                        <h2 className="text-lg font-black text-lego-yellow mb-3 flex items-center gap-2">
+                            <Clock size={20} /> Work in Progress
+                        </h2>
                         <div className="space-y-3">
-                            {activeKits.map(kit => (
-                                <div key={kit.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex gap-3">
-                                    <img src={kit.set_img_url} className="w-20 h-20 object-contain bg-gray-50 rounded-lg" />
-                                    <div className="flex-1 flex flex-col justify-between">
-                                        <div>
-                                            <h3 className="font-bold text-gray-900 line-clamp-2">{kit.set_name}</h3>
-                                            <p className="text-xs text-gray-500">{kit.set_id}</p>
-                                        </div>
-                                        <div className="flex justify-end gap-2 mt-2">
-                                            <button
-                                                onClick={() => deleteKit(kit.id)}
-                                                className="text-xs text-red-400 font-medium px-2 py-1"
-                                            >
-                                                Give Up
-                                            </button>
-                                            <button
-                                                onClick={() => updateKitStatus(kit.id, 'done')}
-                                                className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1 rounded-full"
-                                            >
-                                                Mark Done
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                            {activeKits.map(kit => <KitCard key={kit.id} kit={kit} />)}
                         </div>
-                    )}
-                </section>
+                    </section>
+                )}
 
                 {/* Done Section */}
-                <section>
-                    <h2 className="text-lg font-bold text-gray-700 mb-3 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        Completed
-                    </h2>
-                    {doneKits.length === 0 ? (
-                        <p className="text-sm text-gray-400 italic ml-4">No completed sets yet.</p>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                            {doneKits.map(kit => (
-                                <div key={kit.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-2 opacity-75">
-                                    <img src={kit.set_img_url} className="w-full h-24 object-contain mb-2" />
-                                    <h3 className="text-xs font-bold text-gray-900 truncate">{kit.set_name}</h3>
-                                    <div className="flex justify-between items-center mt-1">
-                                        <span className="text-[10px] text-green-600 font-bold">Done</span>
-                                        <button onClick={() => deleteKit(kit.id)} className="text-[10px] text-gray-400">×</button>
-                                    </div>
-                                </div>
-                            ))}
+                {doneKits.length > 0 && (
+                    <section>
+                        <h2 className="text-lg font-black text-green-600 mb-3 flex items-center gap-2">
+                            <Check size={20} /> Completed
+                        </h2>
+                        <div className="space-y-3 opacity-80">
+                            {doneKits.map(kit => <KitCard key={kit.id} kit={kit} />)}
                         </div>
-                    )}
-                </section>
+                    </section>
+                )}
 
             </main>
         </div>

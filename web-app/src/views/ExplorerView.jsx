@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Loader2, Plus, Check } from 'lucide-react';
+import { Search, Loader2, Plus, Check, Home } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-export default function ExplorerView() {
+export default function ExplorerView({ onHome }) {
     const { addKitToCollection, myKits } = useApp();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
@@ -39,9 +39,15 @@ export default function ExplorerView() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col pb-24 font-nunito">
-            <header className="bg-lego-red px-4 py-6 shadow-lego-sm z-10 sticky top-0">
-                <h1 className="text-2xl font-black text-white mb-4 tracking-tight">Find a Set</h1>
-                <form onSubmit={handleSearch} className="relative">
+            <header className="bg-lego-red px-4 py-4 shadow-lego-sm z-10 sticky top-0 flex flex-col gap-4">
+                <div className="flex items-center gap-3">
+                    <button onClick={onHome} className="bg-white/20 p-2 rounded-lg text-white hover:bg-white/30">
+                        <Home size={20} />
+                    </button>
+                    <h1 className="text-2xl font-black text-white tracking-tight">Find a Set</h1>
+                </div>
+
+                <form onSubmit={handleSearch} className="relative w-full">
                     <input
                         type="text"
                         value={query}

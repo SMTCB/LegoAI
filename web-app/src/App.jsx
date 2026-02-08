@@ -22,9 +22,9 @@ function MainLayout() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-nunito">
       <main className="flex-1 relative overflow-hidden">
-        {activeTab === 'builder' && <BuilderView />}
-        {activeTab === 'explore' && <ExplorerView />}
-        {activeTab === 'collection' && <CollectionView />}
+        {activeTab === 'builder' && <BuilderView onHome={() => setView('welcome')} />}
+        {activeTab === 'explore' && <ExplorerView onHome={() => setView('welcome')} />}
+        {activeTab === 'collection' && <CollectionView onHome={() => setView('welcome')} />}
       </main>
 
       <NavBar activeTab={activeTab} onTabChange={setActiveTab} />
