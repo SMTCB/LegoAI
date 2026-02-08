@@ -1,0 +1,12 @@
+{
+    "name": "lego-ai-root",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "start": "echo 'Deploy via Vercel'"
+    },
+    "dependencies": {
+        "@google/generative-ai": "^0.21.0",
+        "axios": "^1.7.9"
+    }
+}
