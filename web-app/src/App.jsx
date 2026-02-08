@@ -27,7 +27,8 @@ function Main() {
           <button onClick={() => setActiveTab('scan')} className="p-2 mr-2 hover:bg-gray-100 rounded-full">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+            <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
             My Parts Collection
           </h1>
         </header>
