@@ -4,7 +4,7 @@ module.exports = async (req, res) => {
     try {
         console.log("Testing Gemini Text Generation...");
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
         const prompt = "Explain Lego in 5 words.";
         const result = await model.generateContent(prompt);
