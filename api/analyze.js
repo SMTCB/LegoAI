@@ -66,15 +66,31 @@ module.exports = async (req, res) => {
             ]
         });
 
-        // Simplified prompt to avoid triggering "copyright" or "assistant" refusals
-        const prompt = `You are a helper system for identifying Lego parts.
-        Analyze the image and list the visible Lego bricks.
-        Output ONLY valid JSON.
-        Format:
+        // Advanced System Prompt for Lego Identification using AFOL terminology
+        const prompt = `You are an expert LEGO Part Identifier.
+        Analyze the image to identify the specific Lego parts.
+        
+        CRITICAL INSTRUCTIONS:
+        1. **Count Studs**: For every brick/plate, count the studs (e.g., 2x4, 1x2, 1x1).
+        2. **Identify Type**: Distinguish between:
+           - "Brick" (Tall)
+           - "Plate" (Flat, 1/3 height of brick)
+           - "Tile" (Flat, smooth top, no studs)
+           - "Slope" (Angled)
+        3. **Estimate Color**: Use standard Lego color names (e.g., "Red", "Blue", "Black", "Dark Bluish Gray").
+        
+        RETURN ONLY A JSON ARRAY. Format:
         [
-          { "part_num": "3001", "color_id": 0, "quantity": 1, "name": "Brick 2x4" }
+          { 
+            "part_num": "3001", // Best guess at Element ID (e.g. 3001 for Brick 2x4)
+            "color_id": 0,      // Rebrickable Color ID (0=Black, 4=Red, 15=White, 19=Tan, 71=Light Bluish Gray, 72=Dark Bluish Gray)
+            "quantity": 1, 
+            "name": "Brick 2x4"
+          }
         ]
-        Do not say anything else.`;
+        
+        If unsure of the exact Part Num, describe it precisely in the "name" field (e.g., "Plate 2x4 Red") so we can search for it.
+        Do not include markdown or explanations.`;
 
         const result = await model.generateContent([
             prompt,
