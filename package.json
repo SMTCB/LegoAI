@@ -7,6 +7,7 @@
         "build": "npm install && cd web-app && npm install && npm run build"
     },
     "dependencies": {
+        "@google/generative-ai": "^0.21.0",
         "groq-sdk": "^0.3.3",
         "axios": "^1.7.9"
     }
