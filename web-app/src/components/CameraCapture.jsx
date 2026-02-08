@@ -38,11 +38,30 @@ export default function CameraCapture({ onCapture }) {
         if (videoRef.current && canvasRef.current) {
             const context = canvasRef.current.getContext('2d');
             const { videoWidth, videoHeight } = videoRef.current;
-            canvasRef.current.width = videoWidth;
-            canvasRef.current.height = videoHeight;
-            context.drawImage(videoRef.current, 0, 0, videoWidth, videoHeight);
 
-            const dataUrl = canvasRef.current.toDataURL('image/jpeg');
+            // Calculate scale to fit within max dimension (e.g., 1024px)
+            const MAX_SIZE = 1024;
+            let width = videoWidth;
+            let height = videoHeight;
+
+            if (width > height) {
+                if (width > MAX_SIZE) {
+                    height *= MAX_SIZE / width;
+                    width = MAX_SIZE;
+                }
+            } else {
+                if (height > MAX_SIZE) {
+                    width *= MAX_SIZE / height;
+                    height = MAX_SIZE;
+                }
+            }
+
+            canvasRef.current.width = width;
+            canvasRef.current.height = height;
+            context.drawImage(videoRef.current, 0, 0, width, height);
+
+            // Compress to JPEG with 0.8 quality
+            const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8);
             onCapture(dataUrl);
         }
     };

@@ -61,8 +61,8 @@ export function AppProvider({ children }) {
             setScanStatus('success');
 
         } catch (err) {
-            console.error(err);
-            setError("Failed to process image. Please try again.");
+            console.error("Scan Error:", err);
+            setError(`Error: ${err.message || "Failed to process image"}. Check Vercel logs if persistent.`);
             setScanStatus('error');
         }
     };
