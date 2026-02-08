@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
 
         const chatCompletion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: 'Explain Lego in 5 words.' }],
-            model: 'llama-3.2-90b-vision-preview',
+            model: 'llama-3.3-70b-versatile',
         });
 
         res.json({
