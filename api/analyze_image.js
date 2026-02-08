@@ -106,7 +106,10 @@ module.exports = async (req, res) => {
                 const detailsRes = await axios.get(detailsUrl, {
                     headers: { 'Authorization': `key ${process.env.REBRICKABLE_API_KEY}` }
                 });
-                part.part_img_url = detailsRes.data.part_img_url;
+                const partImgUrl = detailsRes.data.part_img_url;
+                if (!partImgUrl) console.warn(`No image found for ${part.part_num}`);
+                else console.log(`Image found for ${part.part_num}: ${partImgUrl}`);
+                part.part_img_url = partImgUrl;
             } catch (err) {
                 console.warn(`Rebrickable Image lookup failed for ${part.part_num}`, err.message);
             }

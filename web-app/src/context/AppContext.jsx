@@ -8,8 +8,11 @@ export function AppProvider({ children }) {
     const [scanStatus, setScanStatus] = useState('idle'); // idle, scanning, success, matching, matching_error
     const [error, setError] = useState(null);
 
+    const [history, setHistory] = useState([]); // Array of arrays (past states)
+
     // Add new parts to the existing list (aggregating quantities)
     const addToSession = (newParts) => {
+        setHistory(prev => [...prev, parts]); // Save current state before modifying
         setParts(prev => {
             const updated = [...prev];
             newParts.forEach(newPart => {
@@ -23,6 +26,14 @@ export function AppProvider({ children }) {
             });
             return updated;
         });
+    };
+
+    const undoLastScan = () => {
+        if (history.length === 0) return;
+        const previousState = history[history.length - 1];
+        setParts(previousState);
+        setHistory(prev => prev.slice(0, -1));
+        setScanStatus('idle'); // interactions reset status
     };
 
     const removePart = (id) => {
@@ -113,6 +124,7 @@ export function AppProvider({ children }) {
             processImage,
             findBuilds,
             clearSession,
+            undoLastScan,
             resetScan,
             removePart
         }}>

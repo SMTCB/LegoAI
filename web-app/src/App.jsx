@@ -6,7 +6,7 @@ import PartsCatalog from './components/PartsCatalog';
 import { AppProvider, useApp } from './context/AppContext';
 
 function Main() {
-  const { scanStatus, builds, parts, processImage, findBuilds, clearSession, removePart, error, resetScan } = useApp();
+  const { scanStatus, builds, parts, processImage, findBuilds, clearSession, undoLastScan, removePart, error, resetScan } = useApp();
   const [activeTab, setActiveTab] = useState('scan');
 
   const handleCapture = (imageData) => {
@@ -111,17 +111,31 @@ function Main() {
 
         {/* Session Action Bar (Bottom) */}
         {scanStatus === 'success' || scanStatus === 'idle' || scanStatus === 'error' ? (
-          <div className="absolute bottom-8 left-0 right-0 z-30 flex justify-center items-center gap-4 px-4 ptr-events-none">
-            {/* Find Builds Button (Only if parts exist) */}
-            {parts.length > 0 && (
-              <button
-                onClick={findBuilds}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-full shadow-xl flex items-center gap-2 font-bold text-lg animate-in slide-in-from-bottom-5 fade-in duration-300 hover:scale-105 transition-transform"
-              >
-                <Grid size={24} />
-                Find Builds ({parts.length})
-              </button>
-            )}
+          <div className="absolute bottom-8 left-0 right-0 z-30 flex flex-col items-center gap-3 px-4 pointer-events-none">
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pointer-events-auto">
+
+              {/* Undo Button (Only if we have parts) */}
+              {parts.length > 0 && (
+                <button
+                  onClick={undoLastScan}
+                  className="bg-gray-800/80 backdrop-blur text-white px-4 py-3 rounded-full shadow-lg font-medium text-sm flex items-center gap-2 border border-white/10 hover:bg-gray-700 transition"
+                >
+                  <ArrowLeft size={16} /> Undo Add
+                </button>
+              )}
+
+              {/* Find Builds Button */}
+              {parts.length > 0 && (
+                <button
+                  onClick={findBuilds}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-2 font-bold text-lg animate-in slide-in-from-bottom-5 fade-in duration-300 hover:scale-105 transition-transform"
+                >
+                  <Grid size={24} />
+                  Find Builds ({parts.length})
+                </button>
+              )}
+            </div>
           </div>
         ) : null}
 
