@@ -50,8 +50,16 @@ function Main() {
             </div>
 
             <div className="absolute top-4 left-4 z-20">
-              <div className="bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold border border-white/20">
+              <div className="bg-black/50 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold border border-white/20 mb-2">
                 Master Builder AI
+              </div>
+              <div className="bg-black/40 backdrop-blur-sm text-white/80 px-3 py-2 rounded-lg text-xs max-w-[200px] border border-white/10">
+                <p className="font-bold mb-1">💡 Pro Tips:</p>
+                <ul className="list-disc pl-3 space-y-1">
+                  <li>Spread parts out clearly.</li>
+                  <li>Use good lighting.</li>
+                  <li>Avoid overlapping bricks.</li>
+                </ul>
               </div>
             </div>
 
@@ -104,10 +112,17 @@ function Main() {
                     {parts.slice(-5).map(p => ( // Show last 5
                       <tr key={p.id} className="border-t border-gray-100">
                         <td className="p-3 flex items-center gap-2">
-                          <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                            {p.img_url ? <img src={p.img_url} alt="" className="max-h-full" /> : <div className="w-2 h-2 bg-gray-400 rounded-full" />}
+                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center overflow-hidden border border-gray-200">
+                            {p.part_img_url ? (
+                              <img src={p.part_img_url} alt={p.name} className="w-full h-full object-contain" />
+                            ) : (
+                              <div className="w-4 h-4 bg-gray-300 rounded" />
+                            )}
                           </div>
-                          <span className="truncate max-w-[150px]">{p.name}</span>
+                          <div>
+                            <div className="font-medium text-gray-900">{p.name}</div>
+                            <div className="text-xs text-gray-400">{p.part_num}</div>
+                          </div>
                         </td>
                         <td className="p-3 text-right font-mono">{p.quantity}</td>
                       </tr>

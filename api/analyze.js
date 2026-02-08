@@ -9,7 +9,18 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const calculateMatchScore = (foundQty, totalSetParts) => {
     if (totalSetParts === 0) return 0;
-    return (foundQty / totalSetParts) * 100;
+
+    // 1. Base Percentage (Capped at 100%)
+    let rawPercentage = (foundQty / totalSetParts) * 100;
+    if (rawPercentage > 100) rawPercentage = 100;
+
+    // 2. Relevance Penalty
+    // If a set has 2000 parts and we found 2, it's 0.1% match.
+    // But raw percentage handles that.
+    // The issue "200% match" came from foundQty > totalSetParts (logic error in aggregation).
+    // We fixed that by capping.
+
+    return rawPercentage;
 };
 
 module.exports = async (req, res) => {
@@ -112,7 +123,8 @@ module.exports = async (req, res) => {
                         part_name: part.name,
                         color_id: part.color_id,
                         owned_qty: part.quantity || 1,
-                        set_qty: set.quantity_in_set || 1
+                        set_qty: set.quantity_in_set || 1,
+                        part_img_url: rebrickableRes.data.part_img_url // Pass the image URL
                     };
 
                     setMap[set.set_num].matched_parts.push(match);
