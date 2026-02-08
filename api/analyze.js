@@ -1,5 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import axios from 'axios';
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 
 // Initialize Gemini
 if (!process.env.GEMINI_API_KEY) {
@@ -12,9 +12,10 @@ const calculateMatchScore = (foundQty, totalSetParts) => {
     return (foundQty / totalSetParts) * 100;
 };
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
     console.log(`[API] Analyze Request received: ${req.method}`);
 
+    // Set CORS headers
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -40,7 +41,9 @@ export default async function handler(req, res) {
         }
 
         const base64Data = image.split(',')[1] || image;
-        const mimeType = image.split(';')[0].split(':')[1] || 'image/jpeg';
+        const mimeType = image.split(';')[0] || 'image/jpeg';
+        // Extract strictly the mime type string "image/jpeg"
+        const mimeTypeClean = mimeType.split(':')[1] || mimeType;
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = `Identify all LEGO bricks in this image. Return ONLY a valid JSON array. Each item must have:
@@ -52,7 +55,7 @@ export default async function handler(req, res) {
 
         const result = await model.generateContent([
             prompt,
-            { inlineData: { data: base64Data, mimeType: mimeType } }
+            { inlineData: { data: base64Data, mimeType: mimeTypeClean } }
         ]);
 
         const responseText = result.response.text();
@@ -131,4 +134,4 @@ export default async function handler(req, res) {
         console.error('Server Error:', error);
         res.status(500).json({ error: error.message });
     }
-}
+};
