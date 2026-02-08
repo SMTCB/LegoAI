@@ -102,8 +102,8 @@ module.exports = async (req, res) => {
         })
             // FILTER: Logic Update (50% score minimum)
             .filter(s => s.match_score > 50)
-            // FILTER: Logic Update (Min 5 parts matched)
-            .filter(s => s.matched_parts.length >= 5)
+            // FILTER: Logic Update (Min 1 part matched for testing)
+            .filter(s => s.matched_parts.length >= 1)
             .sort((a, b) => b.match_score - a.match_score)
             .slice(0, 50); // Increased limit
 

@@ -55,6 +55,10 @@ export function AppProvider({ children }) {
         setCurrentBatchImages(prev => [...prev, imageDataUrl]);
     };
 
+    const removeImageFromBatch = (index) => {
+        setCurrentBatchImages(prev => prev.filter((_, i) => i !== index));
+    };
+
     const clearCurrentBatch = () => {
         setCurrentBatchImages([]);
         setCurrentBatchResults([]);
@@ -147,6 +151,7 @@ export function AppProvider({ children }) {
             error,
             processImage: analyzeBatch, // Keeping name for compatibility or refactor? Let's rename in App.jsx
             addToBatch,
+            removeImageFromBatch,
             analyzeBatch,
             commitBatch,
             clearCurrentBatch,

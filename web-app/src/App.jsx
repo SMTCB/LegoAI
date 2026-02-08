@@ -8,7 +8,7 @@ import { AppProvider, useApp } from './context/AppContext';
 function Main() {
   const {
     scanStatus, builds, parts,
-    addToBatch, analyzeBatch, commitBatch, clearCurrentBatch, currentBatchImages, currentBatchResults,
+    addToBatch, removeImageFromBatch, analyzeBatch, commitBatch, clearCurrentBatch, currentBatchImages, currentBatchResults,
     findBuilds, clearSession, undoLastScan, removePart, error, resetScan
   } = useApp();
 
