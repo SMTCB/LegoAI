@@ -2,7 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles can go here */
+:root {
+  --lego-red: #E3000B;
+  --lego-yellow: #FFD500;
+  --lego-blue: #0055BF;
+  --lego-dark: #24292e;
+}
+
 body {
-  @apply bg-gray-50 text-gray-900;
+  font-family: 'Nunito', sans-serif;
+  color: var(--lego-dark);
+}
+
+@layer utilities {
+  .bg-lego-red {
+    background-color: var(--lego-red);
+  }
+
+  .bg-lego-yellow {
+    background-color: var(--lego-yellow);
+  }
+
+  .bg-lego-blue {
+    background-color: var(--lego-blue);
+  }
+
+  .text-lego-red {
+    color: var(--lego-red);
+  }
+
+  .text-lego-yellow {
+    color: var(--lego-yellow);
+  }
+
+  .text-lego-blue {
+    color: var(--lego-blue);
+  }
+
+  .shadow-lego-card {
+    box-shadow: 4px 4px 0px rgba(0, 0, 0, 1);
+  }
+
+  .shadow-lego-sm {
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 1);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Custom Scrollbar for a cleaner look */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }

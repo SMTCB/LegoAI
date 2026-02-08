@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#ffffff"/>
+  
+  <!-- Letter A (Black, Bold, Sans-Serif) -->
+  <path d="M140 380 L200 120 L270 120 L330 380 L280 380 L265 310 L205 310 L190 380 Z M215 270 L255 270 L235 180 Z" fill="#111111"/>
+
+  <!-- Letter I (Realistic Red Lego Brick 2x4 Vertical) -->
+  <!-- Main Body -->
+  <rect x="340" y="120" width="80" height="260" fill="#E3000B" rx="4"/>
+  <!-- Side Shadow for 3D effect -->
+  <rect x="420" y="120" width="20" height="260" fill="#900000" rx="2"/>
+  <path d="M420 120 L440 120 L440 380 L420 380 Z" fill="#900000"/>
+  
+  <!-- Studs (Top) -->
+  <ellipse cx="360" cy="110" rx="12" ry="6" fill="#E3000B" stroke="#900000" stroke-width="2"/>
+  <ellipse cx="400" cy="110" rx="12" ry="6" fill="#E3000B" stroke="#900000" stroke-width="2"/>
+  
+  <!-- Stud Shadows on body -->
+  <circle cx="360" cy="140" r="10" fill="#C00000" opacity="0.3"/>
+  <circle cx="400" cy="140" r="10" fill="#C00000" opacity="0.3"/>
+  <circle cx="360" cy="180" r="10" fill="#C00000" opacity="0.3"/>
+  <circle cx="400" cy="180" r="10" fill="#C00000" opacity="0.3"/>
+  <circle cx="360" cy="220" r="10" fill="#C00000" opacity="0.3"/>
+  <circle cx="400" cy="220" r="10" fill="#C00000" opacity="0.3"/>
+  <circle cx="360" cy="260" r="10" fill="#C00000" opacity="0.3"/>
+  <circle cx="400" cy="260" r="10" fill="#C00000" opacity="0.3"/>
+
+</svg>
