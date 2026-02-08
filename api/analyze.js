@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
         // Extract strictly the mime type string "image/jpeg"
         const mimeTypeClean = mimeType.split(':')[1] || mimeType;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
         const prompt = `Identify all LEGO bricks in this image. Return ONLY a valid JSON array. Each item must have:
         - \`part_num\`: The specific Lego element ID (e.g. '3001').
         - \`color_id\`: The Rebrickable color ID (approximate if needed, e.g. 0 for Black, 15 for White).
