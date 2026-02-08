@@ -32,7 +32,8 @@ export function AppProvider({ children }) {
         setScanStatus('scanning');
         setError(null);
         try {
-            const response = await fetch(import.meta.env.VITE_API_URL, {
+            const apiUrl = import.meta.env.VITE_API_URL || '/api/analyze';
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image: imageDataUrl })
