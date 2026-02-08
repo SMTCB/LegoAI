@@ -99,12 +99,20 @@ module.exports = async (req, res) => {
 
         const fetchPromises = identifiedParts.map(async (part) => {
             try {
-                const url = `https://rebrickable.com/api/v3/lego/parts/${part.part_num}/colors/${part.color_id}/sets/`;
-                const rebrickableRes = await axios.get(url, {
+                // 1. Fetch Part Details (for the image)
+                const detailsUrl = `https://rebrickable.com/api/v3/lego/parts/${part.part_num}/colors/${part.color_id}/`;
+                const detailsRes = await axios.get(detailsUrl, {
+                    headers: { 'Authorization': `key ${process.env.REBRICKABLE_API_KEY}` }
+                });
+                const partImgUrl = detailsRes.data.part_img_url;
+
+                // 2. Fetch Sets (for matching)
+                const setsUrl = `https://rebrickable.com/api/v3/lego/parts/${part.part_num}/colors/${part.color_id}/sets/`;
+                const setsRes = await axios.get(setsUrl, {
                     headers: { 'Authorization': `key ${process.env.REBRICKABLE_API_KEY}` }
                 });
 
-                const foundSets = rebrickableRes.data.results || [];
+                const foundSets = setsRes.data.results || [];
 
                 foundSets.forEach(set => {
                     if (!setMap[set.set_num]) {
@@ -124,7 +132,7 @@ module.exports = async (req, res) => {
                         color_id: part.color_id,
                         owned_qty: part.quantity || 1,
                         set_qty: set.quantity_in_set || 1,
-                        part_img_url: rebrickableRes.data.part_img_url // Pass the image URL
+                        part_img_url: partImgUrl // Use the fetched image URL
                     };
 
                     setMap[set.set_num].matched_parts.push(match);
