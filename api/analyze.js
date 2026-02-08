@@ -2,6 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import axios from 'axios';
 
 // Initialize Gemini
+if (!process.env.GEMINI_API_KEY) {
+    console.error("[API] Error: GEMINI_API_KEY is missing in environment variables.");
+}
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const calculateMatchScore = (foundQty, totalSetParts) => {
@@ -10,6 +13,8 @@ const calculateMatchScore = (foundQty, totalSetParts) => {
 };
 
 export default async function handler(req, res) {
+    console.log(`[API] Analyze Request received: ${req.method}`);
+
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
