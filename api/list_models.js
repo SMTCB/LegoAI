@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
                 await model.generateContent(prompt);
                 results[modelName] = "OK";
             } catch (e) {
-                results[modelName] = e.message.split(' ')[0] + "..."; // Short error
+                results[modelName] = e.message; // Full error
             }
         }
 
