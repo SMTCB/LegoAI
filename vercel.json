@@ -1,6 +1,22 @@
 {
     "rewrites": [
         {
+            "source": "/api/list_models",
+            "destination": "/api/list_models.js"
+        },
+        {
+            "source": "/api/test_groq",
+            "destination": "/api/test_groq.js"
+        },
+        {
+            "source": "/api/analyze_image",
+            "destination": "/api/analyze_image.js"
+        },
+        {
+            "source": "/api/find_builds",
+            "destination": "/api/find_builds.js"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/$1"
         },
