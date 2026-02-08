@@ -70,7 +70,7 @@ module.exports = async (req, res) => {
                     ],
                 },
             ],
-            model: "llama-3.2-11b-vision-preview",
+            model: "llama-3.2-90b-vision-preview",
             temperature: 0.1,
             max_tokens: 1024,
             top_p: 1,
