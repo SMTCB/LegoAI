@@ -1,22 +1,101 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AppContext = createContext();
 
 export function AppProvider({ children }) {
-    const [parts, setParts] = useState([]); // This is now the Session List
+    // --- Builder State ---
+    const [parts, setParts] = useState([]);
     const [builds, setBuilds] = useState([]);
-    const [scanStatus, setScanStatus] = useState('idle'); // idle, scanning, success, matching, matching_error
+    const [scanStatus, setScanStatus] = useState('idle');
     const [error, setError] = useState(null);
+    const [history, setHistory] = useState([]);
 
-    const [history, setHistory] = useState([]); // Array of arrays (past states)
+    // --- Batch State ---
+    const [currentBatchImages, setCurrentBatchImages] = useState([]);
+    const [currentBatchResults, setCurrentBatchResults] = useState([]);
 
-    // Add new parts to the existing list (aggregating quantities)
+    // --- Collection State (Supabase) ---
+    const [myKits, setMyKits] = useState([]);
+    const [loadingKits, setLoadingKits] = useState(false);
+
+    // Initial Load of Kits
+    useEffect(() => {
+        fetchKits();
+    }, []);
+
+    const fetchKits = async () => {
+        setLoadingKits(true);
+        const { data, error } = await supabase
+            .from('user_kits')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) console.error('Error fetching kits:', error);
+        else setMyKits(data || []);
+        setLoadingKits(false);
+    };
+
+    const addKitToCollection = async (kit) => {
+        // Optimistic UI update
+        const newKit = {
+            set_id: kit.set_id || kit.set_num, // Rebrickable sometimes uses set_num
+            set_name: kit.name,
+            set_img_url: kit.set_img_url,
+            status: 'todo',
+            created_at: new Date().toISOString()
+        };
+
+        setMyKits(prev => [newKit, ...prev]);
+
+        // Supabase Insert
+        const { error } = await supabase
+            .from('user_kits')
+            .insert([{
+                set_id: newKit.set_id,
+                set_name: newKit.set_name,
+                set_img_url: newKit.set_img_url,
+                status: 'todo'
+            }]);
+
+        if (error) {
+            console.error('Error adding kit:', error);
+            // Revert optimistic update? Or just show error toast. For MVP console log is enough.
+        } else {
+            fetchKits(); // Refresh to get real ID
+        }
+    };
+
+    const updateKitStatus = async (id, status) => {
+        setMyKits(prev => prev.map(k => k.id === id ? { ...k, status } : k));
+
+        const { error } = await supabase
+            .from('user_kits')
+            .update({ status })
+            .eq('id', id);
+
+        if (error) console.error('Error updating status:', error);
+    };
+
+    const deleteKit = async (id) => {
+        setMyKits(prev => prev.filter(k => k.id !== id));
+
+        const { error } = await supabase
+            .from('user_kits')
+            .delete()
+            .eq('id', id);
+
+        if (error) console.error('Error deleting kit:', error);
+    };
+
+
+    // --- Builder Logic ---
+
     const addToSession = (newParts) => {
-        setHistory(prev => [...prev, parts]); // Save current state before modifying
+        setHistory(prev => [...prev, parts]);
         setParts(prev => {
             const updated = [...prev];
             newParts.forEach(newPart => {
-                // Fuzzy match based on Part Num + Color
                 const index = updated.findIndex(p => p.part_num === newPart.part_num && p.color_id === newPart.color_id);
                 if (index >= 0) {
                     updated[index] = { ...updated[index], quantity: updated[index].quantity + newPart.quantity };
@@ -33,7 +112,7 @@ export function AppProvider({ children }) {
         const previousState = history[history.length - 1];
         setParts(previousState);
         setHistory(prev => prev.slice(0, -1));
-        setScanStatus('idle'); // interactions reset status
+        setScanStatus('idle');
     };
 
     const removePart = (id) => {
@@ -46,10 +125,6 @@ export function AppProvider({ children }) {
         setScanStatus('idle');
         setError(null);
     };
-
-    // Batch State
-    const [currentBatchImages, setCurrentBatchImages] = useState([]);
-    const [currentBatchResults, setCurrentBatchResults] = useState([]);
 
     const addToBatch = (imageDataUrl) => {
         setCurrentBatchImages(prev => [...prev, imageDataUrl]);
@@ -65,7 +140,6 @@ export function AppProvider({ children }) {
         setScanStatus('idle');
     };
 
-    // Step 1: Analyze Batch (Sends ALL photos of the pile)
     const analyzeBatch = async () => {
         if (currentBatchImages.length === 0) return;
 
@@ -92,7 +166,6 @@ export function AppProvider({ children }) {
                 id: crypto.randomUUID()
             }));
 
-            // Store results in "Review" state, NOT main collection yet
             setCurrentBatchResults(partsWithIds);
             setScanStatus('review');
 
@@ -103,14 +176,12 @@ export function AppProvider({ children }) {
         }
     };
 
-    // Commit the reviewed batch to the main collection
     const commitBatch = () => {
         addToSession(currentBatchResults);
-        clearCurrentBatch(); // Reset for the NEXT pile
+        clearCurrentBatch();
         setScanStatus('idle');
     };
 
-    // Step 2: Find Builds (Logic Only)
     const findBuilds = async () => {
         if (parts.length === 0) return;
 
@@ -149,7 +220,7 @@ export function AppProvider({ children }) {
             builds,
             scanStatus,
             error,
-            processImage: analyzeBatch, // Keeping name for compatibility or refactor? Let's rename in App.jsx
+            processImage: analyzeBatch,
             addToBatch,
             removeImageFromBatch,
             analyzeBatch,
@@ -161,7 +232,13 @@ export function AppProvider({ children }) {
             clearSession,
             undoLastScan,
             resetScan,
-            removePart
+            removePart,
+            // Collection
+            myKits,
+            loadingKits,
+            addKitToCollection,
+            updateKitStatus,
+            deleteKit
         }}>
             {children}
         </AppContext.Provider>
