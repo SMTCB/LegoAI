@@ -15,11 +15,11 @@ export default function PartsCatalog({ parts, onRemove }) {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
             {parts.map((part) => (
                 <div key={part.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm hover:shadow-md transition-shadow relative group">
-                    <div className="h-24 bg-gray-50 rounded-md mb-2 flex items-center justify-center overflow-hidden">
-                        {part.img_url ? (
-                            <img src={part.img_url} alt={part.name} className="max-h-full max-w-full object-contain" />
+                    <div className="h-24 bg-white rounded-md mb-2 flex items-center justify-center overflow-hidden border border-gray-100 p-2">
+                        {part.part_img_url || part.img_url ? (
+                            <img src={part.part_img_url || part.img_url} alt={part.name} className="max-h-full max-w-full object-contain" />
                         ) : (
-                            <Package size={32} className="text-gray-300" />
+                            <Package size={32} className="text-gray-200" />
                         )}
                     </div>
 
