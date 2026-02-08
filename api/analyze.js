@@ -44,15 +44,26 @@ module.exports = async (req, res) => {
         const mimeType = image.split(';')[0] || 'image/jpeg';
         const mimeTypeClean = mimeType.split(':')[1] || mimeType;
 
-        // Using gemini-2.0-flash as confirmed by user's model list
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        // Using gemini-2.0-flash with loose safety settings
+        const model = genAI.getGenerativeModel({
+            model: "gemini-2.0-flash",
+            safetySettings: [
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+            ]
+        });
 
-        const prompt = `Identify all LEGO bricks in this image. Return ONLY a valid JSON array. Each item must have:
-        - \`part_num\`: The specific Lego element ID (e.g. '3001').
-        - \`color_id\`: The Rebrickable color ID (approximate if needed, e.g. 0 for Black, 15 for White).
-        - \`quantity\`: Count of this brick.
-        - \`name\`: Brief description.
-        Do not include markdown formatting or backticks.`;
+        // Simplified prompt to avoid triggering "copyright" or "assistant" refusals
+        const prompt = `You are a helper system for identifying Lego parts.
+        Analyze the image and list the visible Lego bricks.
+        Output ONLY valid JSON.
+        Format:
+        [
+          { "part_num": "3001", "color_id": 0, "quantity": 1, "name": "Brick 2x4" }
+        ]
+        Do not say anything else.`;
 
         const result = await model.generateContent([
             prompt,
