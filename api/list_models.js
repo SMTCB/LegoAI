@@ -1,44 +1,40 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const axios = require('axios');
 
 module.exports = async (req, res) => {
     try {
-        if (!process.env.GEMINI_API_KEY) {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
             return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
         }
 
-        // Preview the key to ensure it's not empty or malformed
-        const keyPreview = process.env.GEMINI_API_KEY.substring(0, 5) + "...";
+        const keyPreview = apiKey.substring(0, 5) + "...";
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        // Direct REST API call to list models
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
 
-        // Strategy 2: Direct List Query (Standard Candidates)
-        const modelsToTest = [
-            "gemini-1.5-flash-8b",
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
-            "gemini-pro",
-            "gemini-pro-vision"
-        ];
+        try {
+            const response = await axios.get(url);
+            const models = response.data.models || [];
 
-        const testResults = {};
+            // Filter for "generateContent" support
+            const contentModels = models.filter(m =>
+                m.supportedGenerationMethods &&
+                m.supportedGenerationMethods.includes("generateContent")
+            ).map(m => m.name.replace('models/', '')); // Clean name
 
-        for (const modelName of modelsToTest) {
-            try {
-                const model = genAI.getGenerativeModel({ model: modelName });
-                const prompt = "Hi";
-                await model.generateContent(prompt);
-                testResults[modelName] = "OK";
-            } catch (e) {
-                testResults[modelName] = e.message;
-            }
+            res.json({
+                status: 'ok',
+                key_preview: keyPreview,
+                available_models: contentModels,
+                raw_count: models.length
+            });
+
+        } catch (apiError) {
+            res.status(apiError.response?.status || 500).json({
+                error: 'Google API Error',
+                details: apiError.response?.data || apiError.message
+            });
         }
-
-        res.json({
-            status: 'ok',
-            key_preview: keyPreview,
-            tests: testResults,
-            note: "Checking key prefix and new model variants."
-        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
