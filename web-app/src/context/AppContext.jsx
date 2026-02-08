@@ -32,32 +32,32 @@ export function AppProvider({ children }) {
         setScanStatus('scanning');
         setError(null);
         try {
-            // Mock API call structure for now
-            // const response = await fetch(import.meta.env.VITE_N8N_WEBHOOK_URL, {
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify({ image: imageDataUrl })
-            // });
-            // const data = await response.json();
+            const response = await fetch(import.meta.env.VITE_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageDataUrl })
+            });
 
-            // Simulating a delay and success for UI dev
-            await new Promise(r => setTimeout(r, 2000));
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.statusText}`);
+            }
 
-            // Mock data response based on specs logic
-            const mockResult = {
-                scan_id: "mock-scan-123",
-                identified_parts: [
-                    { id: crypto.randomUUID(), part_num: "3001", color_id: 15, name: "Brick 2x4", quantity: 3, img_url: "https://rebrickable.com/media/parts/elements/300126.jpg" }
-                ],
-                suggested_builds: [
-                    { set_id: "60000", name: "Fire Motorcycle", match_score: 92.5, num_parts: 40, set_img_url: "https://images.brickset.com/sets/images/60000-1.jpg", set_url: "#" },
-                    { set_id: "30012", name: "Microlight", match_score: 88.0, num_parts: 35, set_img_url: "https://images.brickset.com/sets/images/30012-1.jpg", set_url: "#" },
-                    { set_id: "40000", name: "Cool Robot", match_score: 75.0, num_parts: 120, set_img_url: "https://images.brickset.com/sets/images/40000-1.jpg", set_url: "#" }
-                ]
-            };
+            const data = await response.json();
 
-            addParts(mockResult.identified_parts);
-            setBuilds(mockResult.suggested_builds);
+            // Handle potential error returned from backend (e.g., parsing failure)
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // Backend returns: { identified_parts: [], suggested_builds: [] }
+            // Must assign IDs to parts for React keys if not present (backend might not send unique IDs)
+            const partsWithIds = (data.identified_parts || []).map(p => ({
+                ...p,
+                id: p.id || crypto.randomUUID() // Ensure unique ID for UI
+            }));
+
+            addParts(partsWithIds);
+            setBuilds(data.suggested_builds || []);
             setScanStatus('success');
 
         } catch (err) {

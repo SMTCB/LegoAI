@@ -54,3 +54,44 @@ The core matching algorithm resides in n8n.
 ## Network Setup
 - **ngrok**: Use `ngrok` to expose localhost:5678 (n8n) to a stable public URL.
 - **Git Auto-Push**: Enabled via Antigravity for continuous backup.
+
+## External API: Rebrickable
+**Documentation**: [Rebrickable API v3](https://rebrickable## 2. Backend API (Node.js)
+
+### **Stack**
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Libraries**: `@google/generative-ai` (AI), `axios` (HTTP), `dotenv` (Config).
+
+### **Endpoint: POST /analyze**
+*   **Input**: JSON Body
+    ```json
+    { "image": "data:image/jpeg;base64,..." }
+    ```
+*   **Logic Flow**:
+    1.  **Receive Image**: Parse Base64 from request body.
+    2.  **Gemini Analysis**: Send image to `gemini-1.5-flash` with prompt: "Identify all LEGO bricks... return JSON".
+    3.  **Parse & Iterate**: Convert AI text response to JSON Array of parts.
+    4.  **Rebrickable Lookup**: For each part, query `GET /api/v3/lego/parts/{part_num}/colors/{color_id}/sets/`.
+    5.  **Score & Group**:
+        - Aggregate sets found.
+        - `Match Score` = `(Found Parts / Total Set Parts) * 100`.
+        - Filter results with Score < 5%.
+*   **Output**: JSON Array of Sets
+    ```json
+    [
+      {
+        "set_id": "60312",
+        "name": "Police Car",
+        "match_score": 85.5,
+        "matched_parts": [...]
+      }
+    ]
+    ```
+/{set_num}/parts/`
+    - Retrieves the full parts list for a set to calculate the match percentage.
+
+### Authentication
+- **Method**: Header Key
+- **Header info**: `Authorization: key <YOUR_API_KEY>`
+- **Usage**: Only use this in **Backend** (server-side). Never expose the key in the React frontend.

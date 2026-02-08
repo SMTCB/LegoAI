@@ -1,0 +1,211 @@
+{
+    "name": "Lego Part Identifier",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "analyze",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                220,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "prompt": "Identify all LEGO bricks in this image. Return ONLY a valid JSON array. Each item must have:\n- `part_num`: The specific Lego element ID (e.g. '3001').\n- `color_id`: The Rebrickable color ID (approximate if needed, e.g. 0 for Black, 15 for White).\n- `quantity`: Count of this brick.\n- `name`: Brief description.\nDo not include markdown formatting or backticks.",
+                "modelName": "models/gemini-1.5-flash",
+                "binaryData": true,
+                "binaryPropertyName": "data"
+            },
+            "name": "Gemini Chat",
+            "type": "n8n-nodes-base.googleGeminiChat",
+            "typeVersion": 1,
+            "position": [
+                440,
+                300
+            ],
+            "credentials": {
+                "googleGeminiApi": {
+                    "id": "YOUR_GEMINI_API_CREDENTIAL_ID",
+                    "name": "Google Gemini account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Robust JSON parsing\nconst aiText = $input.first().json.content || '[]';\nlet parts = [];\n\ntry {\n  // Clean up code blocks\n  const cleanJson = aiText.replace(/```json/g, '').replace(/```/g, '').trim();\n  parts = JSON.parse(cleanJson);\n} catch (e) {\n  // Fallback or empty\n  parts = [];\n}\n\n// Ensure array\nif (!Array.isArray(parts)) parts = [];\n\nreturn parts.map(p => ({ json: p }));"
+            },
+            "name": "Parse AI Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                660,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "Split In Batches",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 1,
+            "position": [
+                880,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "={{ 'https://rebrickable.com/api/v3/lego/parts/' + $json.part_num + '/colors/' + $json.color_id + '/sets/' }}",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "options": {}
+            },
+            "name": "Rebrickable Request",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                1100,
+                180
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "YOUR_REBRICKABLE_CREDENTIAL_ID",
+                    "name": "Rebrickable Header Auth"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Just pass through to close loop\nreturn $input.all();"
+            },
+            "name": "Loop End",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                1320,
+                180
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Master Link Logic & Scoring\nconst allExecutions = $('Rebrickable Request').all();\nconst allInputParts = $('Parse AI Response').all().map(i => i.json);\n\nconst setMap = {};\n\nallExecutions.forEach((executionItem, index) => {\n    const identifiedPart = allInputParts[index] || {};\n    const foundSets = executionItem.json.results || [];\n\n    foundSets.forEach(set => {\n        if (!setMap[set.set_num]) {\n            setMap[set.set_num] = {\n                set_id: set.set_num,\n                name: set.name,\n                num_parts: set.num_parts || 9999,\n                matched_parts: [],\n                total_matched_quantity: 0\n            };\n        }\n\n        const match = {\n            part_num: identifiedPart.part_num,\n            part_name: identifiedPart.name,\n            color_id: identifiedPart.color_id,\n            owned_qty: identifiedPart.quantity || 1,\n            set_qty: set.quantity_in_set || 1,\n            is_exact_color: true\n        };\n        \n        setMap[set.set_num].matched_parts.push(match);\n        setMap[set.set_num].total_matched_quantity += Math.min(match.owned_qty, match.set_qty);\n    });\n});\n\n// Score and Filter > 5%\nconst results = Object.values(setMap).map(set => {\n    const score = (set.total_matched_quantity / set.num_parts) * 100;\n    return {\n        ...set,\n        match_score: parseFloat(score.toFixed(2))\n    };\n}).filter(s => s.match_score > 5);\n\nresults.sort((a, b) => b.match_score - a.match_score);\n\nreturn results.map(r => ({ json: r }));"
+            },
+            "name": "Master Logic",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                1100,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ JSON.stringify($json) }}",
+                "options": {}
+            },
+            "name": "Respond to Webhook",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                1320,
+                500
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini Chat",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini Chat": {
+            "main": [
+                [
+                    {
+                        "node": "Parse AI Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse AI Response": {
+            "main": [
+                [
+                    {
+                        "node": "Split In Batches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split In Batches": {
+            "main": [
+                [
+                    {
+                        "node": "Rebrickable Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Master Logic",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Rebrickable Request": {
+            "main": [
+                [
+                    {
+                        "node": "Loop End",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop End": {
+            "main": [
+                [
+                    {
+                        "node": "Split In Batches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Master Logic": {
+            "main": [
+                [
+                    {
+                        "node": "Respond to Webhook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
