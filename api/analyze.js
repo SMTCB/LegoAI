@@ -1,11 +1,11 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require('groq-sdk');
 const axios = require('axios');
 
-// Initialize Gemini
-if (!process.env.GEMINI_API_KEY) {
-    console.error("[API] Error: GEMINI_API_KEY is missing in environment variables.");
+// Initialize Groq
+if (!process.env.GROQ_API_KEY) {
+    console.error("[API] Error: GROQ_API_KEY is missing in environment variables.");
 }
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const calculateMatchScore = (foundQty, totalSetParts) => {
     if (totalSetParts === 0) return 0;
@@ -40,30 +40,68 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'No image data provided' });
         }
 
-        const base64Data = image.split(',')[1] || image;
-        const mimeType = image.split(';')[0] || 'image/jpeg';
-        // Extract strictly the mime type string "image/jpeg"
-        const mimeTypeClean = mimeType.split(':')[1] || mimeType;
+        // Groq/OpenAI compatible 'image_url' format requires Data URI
+        // Client already sends Data URI, so we can use it directly.
+        const imageUrl = image;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-        const prompt = `Identify all LEGO bricks in this image. Return ONLY a valid JSON array. Each item must have:
-        - \`part_num\`: The specific Lego element ID (e.g. '3001').
-        - \`color_id\`: The Rebrickable color ID (approximate if needed, e.g. 0 for Black, 15 for White).
-        - \`quantity\`: Count of this brick.
-        - \`name\`: Brief description.
-        Do not include markdown formatting or backticks.`;
+        // System prompt for strict JSON
+        const systemPrompt = `You are a specialized Lego Brick Identifier.
+        Identify all LEGO bricks in the image.
+        Return ONLY a valid JSON array.
+        Each item must have:
+        - "part_num": The specific Lego element ID (e.g. '3001').
+        - "color_id": The Rebrickable color ID (approximate if needed, e.g. 0 for Black, 15 for White).
+        - "quantity": Count of this brick.
+        - "name": Brief description.
+        Do not include markdown formatting or backticks. Just the raw JSON string.`;
 
-        const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: base64Data, mimeType: mimeTypeClean } }
-        ]);
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                {
+                    role: "user",
+                    content: [
+                        { type: "text", text: systemPrompt },
+                        {
+                            type: "image_url",
+                            image_url: {
+                                url: imageUrl,
+                            },
+                        },
+                    ],
+                },
+            ],
+            model: "llama-3.2-11b-vision-preview",
+            temperature: 0.1,
+            max_tokens: 1024,
+            top_p: 1,
+            stream: false,
+            response_format: { type: "json_object" }, // Attempt to force JSON mode if supported
+        });
 
-        const responseText = result.response.text();
+        const responseText = chatCompletion.choices[0]?.message?.content;
         let identifiedParts = [];
+
         try {
+            // Cleanup any potential markdown wrapper
             const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-            identifiedParts = JSON.parse(cleanJson);
+
+            // Llama sometimes returns an object wrapper like { "parts": [...] } or just the array
+            const parsed = JSON.parse(cleanJson);
+
+            if (Array.isArray(parsed)) {
+                identifiedParts = parsed;
+            } else if (parsed.parts && Array.isArray(parsed.parts)) {
+                identifiedParts = parsed.parts;
+            } else {
+                // Fallback: try to find an array in values
+                const values = Object.values(parsed);
+                const arrayVal = values.find(v => Array.isArray(v));
+                if (arrayVal) identifiedParts = arrayVal;
+            }
+
         } catch (e) {
+            console.error("Groq JSON Parse Error", e);
+            console.log("Raw Response:", responseText);
             return res.status(500).json({ error: 'Failed to parse AI response', raw: responseText });
         }
 
@@ -71,11 +109,13 @@ module.exports = async (req, res) => {
             return res.json({ identified_parts: [], suggested_builds: [] });
         }
 
-        // Rebrickable Logic
+        // Rebrickable Logic (Existing Logic Preserved)
         const setMap = {};
-
         const fetchPromises = identifiedParts.map(async (part) => {
             try {
+                // Ensure part_num and color_id are present
+                if (!part.part_num || part.color_id === undefined) return;
+
                 const url = `https://rebrickable.com/api/v3/lego/parts/${part.part_num}/colors/${part.color_id}/sets/`;
                 const rebrickableRes = await axios.get(url, {
                     headers: { 'Authorization': `key ${process.env.REBRICKABLE_API_KEY}` }
@@ -107,7 +147,12 @@ module.exports = async (req, res) => {
                     setMap[set.set_num].total_matched_quantity += Math.min(match.owned_qty, match.set_qty);
                 });
             } catch (err) {
-                console.warn(`Rebrickable lookup failed for ${part.part_num}`, err.message);
+                // Suppress 404s for invalid parts
+                if (err.response && err.response.status === 404) {
+                    console.warn(`Rebrickable: Part ${part.part_num} not found.`);
+                } else {
+                    console.warn(`Rebrickable lookup failed for ${part.part_num}`, err.message);
+                }
             }
         });
 

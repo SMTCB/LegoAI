@@ -1,4 +1,4 @@
-# Deploying to Vercel
+# Deploying to Vercel (Groq Edition)
 
 ## Prerequisites
 - A GitHub account.
@@ -10,7 +10,7 @@
     Ensure all your code is committed and pushed to your GitHub repository.
     ```bash
     git add .
-    git commit -m "Ready for Vercel"
+    git commit -m "Migrated to Groq"
     git push
     ```
 
@@ -23,19 +23,18 @@
     - **Framework Preset**: Vercel should auto-detect "Vite". If not, select **Vite**.
     - **Root Directory**: Leave as `./` (Root).
     - **Build & Output Settings** (Expand this section):
-        - **Build Command**: Toggle **OVERRIDE** to ON. Enter: `cd web-app && npm install && npm run build`
+        - **Build Command**: Toggle **OVERRIDE** to ON. Enter: `npm run build`
         - **Output Directory**: Toggle **OVERRIDE** to ON. Enter: `web-app/dist`
     - **Environment Variables**:
-      Add the following keys from your local `.env` files:
-      - `GEMINI_API_KEY`
-      - `REBRICKABLE_API_KEY`
+      Add the following keys:
+      - `GROQ_API_KEY`: `gsk_O6i...` (Your Groq Key)
+      - `REBRICKABLE_API_KEY`: `790...` (Your Rebrickable Key)
       - `VITE_SUPABASE_URL` (if used)
       - `VITE_SUPABASE_ANON_KEY` (if used)
 
 4.  **Deploy**:
     - Click **Deploy**.
-    - Vercel will build the frontend and set up the serverless functions in `api/`.
+    - Vercel will build everything.
 
 5.  **Done!**:
-    - You will get a URL like `https://lego-ai.vercel.app`.
-    - Open this URL on your iPhone/Android to test!
+    - Open your new URL on your phone!
