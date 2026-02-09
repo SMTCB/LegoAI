@@ -67,34 +67,36 @@ export default function CameraCapture({ onCapture }) {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center p-4 w-full h-full bg-gray-900 text-white">
+        <div className="relative w-full h-full bg-black overflow-hidden">
             {error ? (
-                <div className="text-red-500 p-4 border border-red-500 rounded bg-red-900/20">
-                    <p>{error}</p>
-                    <button onClick={startCamera} className="mt-4 px-4 py-2 bg-red-600 rounded flex items-center gap-2">
-                        <RefreshCw size={18} /> Retry
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center text-white bg-gray-900">
+                    <p className="text-red-400 font-bold mb-4">{error}</p>
+                    <button onClick={startCamera} className="px-6 py-3 bg-lego-red text-white rounded-xl font-bold flex items-center gap-2 shadow-lg active:scale-95 transition-transform">
+                        <RefreshCw size={20} /> Retry Camera
                     </button>
                 </div>
             ) : (
-                <div className="relative w-full max-w-md aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-700">
+                <>
                     <video
                         ref={videoRef}
                         autoPlay
                         playsInline
+                        muted
                         className="w-full h-full object-cover"
                     />
                     <canvas ref={canvasRef} className="hidden" />
 
-                    <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+                    {/* Shutter Button - Floating Bottom Center */}
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
                         <button
                             onClick={takePhoto}
-                            className="w-20 h-20 rounded-full border-4 border-white bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/40 active:scale-95 transition-all"
+                            className="w-16 h-16 rounded-full border-4 border-white bg-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/30 active:scale-95 transition-all shadow-lego-sm"
                             aria-label="Take Photo"
                         >
-                            <div className="w-16 h-16 bg-white rounded-full shadow-lg" />
+                            <div className="w-12 h-12 bg-white rounded-full shadow-inner" />
                         </button>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );

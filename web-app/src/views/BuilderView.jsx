@@ -245,10 +245,10 @@ export default function BuilderView({ onHome }) {
             )}
 
             {/* Main Camera UI */}
-            <div className="flex-1 relative bg-black flex flex-col">
+            <div className="flex-1 relative bg-black flex flex-col overflow-hidden">
                 {showTutorial && <TutorialOverlay onClose={() => setShowTutorial(false)} />}
 
-                <div className="flex-1 relative overflow-hidden rounded-b-3xl border-b-4 border-gray-800">
+                <div className="flex-1 relative">
                     <CameraCapture onCapture={handleCapture} />
 
                     {/* LEGO FRAME BORDER OVERLAY */}
