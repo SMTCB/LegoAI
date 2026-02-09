@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
 
         // Using gemini-2.0-flash with loose safety settings
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
+            model: "gemini-1.5-pro",
             safetySettings: [
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
@@ -66,6 +66,8 @@ module.exports = async (req, res) => {
         CRITICAL PROCESS:
         1. **Analyze Shape**: Is it a Brick (tall), Plate (flat), or Tile (smooth)?
         2. **Count Studs**: Count the studs precisely (e.g., 2 rows of 4 studs = 2x4).
+           - Do NOT guess "Brick 2x4" (3001) unless you clearly see 8 studs.
+           - If it is very long, count the length carefully (e.g., 1x6, 1x8, 2x8).
         3. **Check Features**: Look for clips, holes, slopes, or prints.
         4. **Deduplicate**: The photos show the SAME parts. Do not double count.
         
@@ -82,6 +84,11 @@ module.exports = async (req, res) => {
           ]
         }
         
+        EXAMPLES of Reasoning:
+        - "I see a tall white piece with 1 stud on top. It is NOT a Plate. It is a Brick 1x1." -> Part 3005.
+        - "I see a flat grey piece, 2 studs wide and 4 long. It has no studs on top, it is smooth." -> Tile 2x4 (Part 87079).
+        - "I see a tall brick, 1 stud wide, 3 bricks high." -> Brick 1x1x3 (Part 14716).
+
         If unsure of the ID, use the most descriptive name possible (e.g., "Plate 1x2 with Clip").`;
 
         const result = await model.generateContent([
@@ -91,6 +98,8 @@ module.exports = async (req, res) => {
 
         const responseText = result.response.text();
         let identifiedParts = [];
+        let reasoning = "No reasoning provided";
+
         try {
             const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(cleanJson);
@@ -100,6 +109,7 @@ module.exports = async (req, res) => {
                 identifiedParts = parsed;
             } else if (parsed.identified_parts) {
                 console.log("[AI Reasoning]:", parsed.reasoning); // Log reasoning for debug
+                reasoning = parsed.reasoning;
                 identifiedParts = parsed.identified_parts;
             } else {
                 identifiedParts = [];
@@ -137,9 +147,10 @@ module.exports = async (req, res) => {
 
         await Promise.all(fetchPromises);
 
-        // Return ONLY the parts. The frontend accumulates them.
+        // Return parts and reasoning for debugging
         res.json({
-            identified_parts: identifiedParts
+            identified_parts: identifiedParts,
+            reasoning: reasoning
         });
 
     } catch (error) {

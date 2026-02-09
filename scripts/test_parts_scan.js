@@ -51,6 +51,7 @@ async function runTests() {
             const duration = Date.now() - startTime;
 
             const actualParts = response.data.identified_parts || [];
+            const reasoning = response.data.reasoning;
 
             // Compare Results
             const report = compareResults(expectedParts, actualParts);
@@ -60,6 +61,7 @@ async function runTests() {
                 passed++;
             } else {
                 console.log(`❌ FAIL (${duration}ms)`);
+                if (reasoning) console.log(`   🧠 AI Reasoning: ${reasoning}`);
                 console.log('   Expected:', JSON.stringify(expectedParts, null, 2));
                 console.log('   Actual:', JSON.stringify(actualParts, null, 2));
                 console.log('   Errors:', report.errors);

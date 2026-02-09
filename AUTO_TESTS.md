@@ -12,8 +12,13 @@ This project includes an automated testing pipeline to validate the **Parts Scan
 
 ## 🚀 How to Run Tests
 
-1.  **Start the API**: Ensure your development server is running (`npm run dev` in `web-app/`).
+1.  **Start the API Server**:
+    Open a terminal in the project root and run:
+    ```bash
+    node server.js
+    ```
 2.  **Run the Test Script**:
+    Open a second terminal and run:
     ```bash
     node scripts/test_parts_scan.js
     ```

@@ -1,9 +1,114 @@
 {
-    "example_test_image.jpg": [
+    "IMG_1371.jpg": [
+        {
+            "part_num": "3666",
+            "quantity": 1,
+            "name": "Plate 1 x 6"
+        }
+    ],
+    "IMG_1372.jpg": [
         {
             "part_num": "3001",
             "quantity": 1,
             "name": "Brick 2x4"
+        }
+    ],
+    "IMG_1373.jpg": [
+        {
+            "part_num": "3020",
+            "quantity": 1,
+            "name": "Plate 2 x 4"
+        }
+    ],
+    "IMG_1375.jpg": [
+        {
+            "part_num": "11213",
+            "quantity": 1,
+            "name": "Plate Round 6 x 6 with Hole"
+        }
+    ],
+    "IMG_1376.jpg": [
+        {
+            "part_num": "11213",
+            "quantity": 1,
+            "name": "Plate Round 6 x 6 with Hole"
+        }
+    ],
+    "IMG_1377.jpg": [
+        {
+            "part_num": "18897",
+            "quantity": 1,
+            "name": "Brick Round 6 x 6 with 4 Side Pin Holes and Center Hole"
+        }
+    ],
+    "IMG_1378.jpg": [
+        {
+            "part_num": "18897",
+            "quantity": 1,
+            "name": "Brick Round 6 x 6 with 4 Side Pin Holes and Center Hole"
+        }
+    ],
+    "IMG_1379.jpg": [
+        {
+            "part_num": "11833",
+            "quantity": 1,
+            "name": "Plate Round 4 x 4 with 2 x 2 Round Opening"
+        }
+    ],
+    "IMG_1380.jpg": [
+        {
+            "part_num": "11833",
+            "quantity": 1,
+            "name": "Plate Round 4 x 4 with 2 x 2 Round Opening"
+        }
+    ],
+    "IMG_1381.jpg": [
+        {
+            "part_num": "3033",
+            "quantity": 1,
+            "name": "Plate 6 x 10"
+        }
+    ],
+    "IMG_1382.jpg": [
+        {
+            "part_num": "3033",
+            "quantity": 1,
+            "name": "Plate 6 x 10"
+        }
+    ],
+    "IMG_1383.jpg": [
+        {
+            "part_num": "4162",
+            "quantity": 1,
+            "name": "Tile 1 x 8 with Groove"
+        }
+    ],
+    "IMG_1384.jpg": [
+        {
+            "part_num": "4162",
+            "quantity": 1,
+            "name": "Tile 1 x 8 with Groove"
+        }
+    ],
+    "IMG_1385.jpg": [
+        {
+            "part_num": "14716",
+            "quantity": 1,
+            "name": "Brick 1 x 1 x 3"
+        }
+    ],
+    "IMG_1386.jpg": [
+        {
+            "part_num": "3005",
+            "quantity": 1,
+            "name": "Brick 1 x 1"
+        }
+    ],
+    "IMG_1387.jpg": [
+        {
+            "part_num": "33909",
+            "quantity": 1,
+            "name": "Plate Special 2 x 2 with Only 2 studs"
         }
     ]
 }
