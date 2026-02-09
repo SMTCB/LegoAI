@@ -1,0 +1,9 @@
+{
+    "example_test_image.jpg": [
+        {
+            "part_num": "3001",
+            "quantity": 1,
+            "name": "Brick 2x4"
+        }
+    ]
+}
