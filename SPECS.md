@@ -92,6 +92,10 @@ The core matching algorithm resides in n8n.
     - Retrieves the full parts list for a set to calculate the match percentage.
 
 ### Authentication
-- **Method**: Header Key
-- **Header info**: `Authorization: key <YOUR_API_KEY>`
 - **Usage**: Only use this in **Backend** (server-side). Never expose the key in the React frontend.
+
+### Official Content Tunneling
+To provide a premium experience, the app tunnels users to official LEGO resources where possible:
+- **Set Images**: Prefer `https://images.brickset.com/sets/images/{SET_ID}.jpg` for high-res official packing art.
+- **Instructions**: Redirect to `https://www.lego.com/service/buildinginstructions/{SET_ID}`.
+- **Missing Parts**: Link to [LEGO Pick a Brick](https://www.lego.com/en-us/pick-and-build/pick-a-brick) for missing pieces.

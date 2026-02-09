@@ -119,6 +119,10 @@ export function AppProvider({ children }) {
         setParts(prev => prev.filter(p => p.id !== id));
     };
 
+    const updatePartQuantity = (id, newQuantity) => {
+        setParts(prev => prev.map(p => p.id === id ? { ...p, quantity: newQuantity } : p));
+    };
+
     const clearSession = () => {
         setParts([]);
         setBuilds([]);
@@ -233,6 +237,7 @@ export function AppProvider({ children }) {
             undoLastScan,
             resetScan,
             removePart,
+            updatePartQuantity,
             // Collection
             myKits,
             loadingKits,

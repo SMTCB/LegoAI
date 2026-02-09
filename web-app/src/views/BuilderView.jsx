@@ -10,7 +10,7 @@ export default function BuilderView({ onHome }) {
     const {
         scanStatus, builds, parts,
         addToBatch, removeImageFromBatch, analyzeBatch, commitBatch, clearCurrentBatch, currentBatchImages, currentBatchResults,
-        findBuilds, clearSession, undoLastScan, removePart, error, resetScan
+        findBuilds, clearSession, undoLastScan, removePart, updatePartQuantity, error, resetScan
     } = useApp();
 
     // 'intro' (landing), 'camera' (scanning), 'parts_list' (review)
@@ -87,7 +87,7 @@ export default function BuilderView({ onHome }) {
                     <h1 className="text-xl font-black text-gray-800">Current Session Parts</h1>
                 </header>
                 <main className="flex-1 overflow-y-auto">
-                    <PartsCatalog parts={parts} onRemove={removePart} />
+                    <PartsCatalog parts={parts} onRemove={removePart} onUpdateQuantity={updatePartQuantity} />
                 </main>
             </div>
         );
