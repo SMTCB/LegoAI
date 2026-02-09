@@ -6,9 +6,17 @@ import ExplorerView from './views/ExplorerView';
 import CollectionView from './views/CollectionView';
 import WelcomeView from './views/WelcomeView';
 
+import LoginView from './views/LoginView';
+import { useApp } from './context/AppContext';
+
 function MainLayout() {
+  const { user } = useApp();
   const [view, setView] = useState('welcome'); // 'welcome', 'app'
   const [activeTab, setActiveTab] = useState('builder'); // 'builder', 'explore', 'collection'
+
+  if (!user) {
+    return <LoginView />;
+  }
 
   const handleNavigate = (tab) => {
     setActiveTab(tab);

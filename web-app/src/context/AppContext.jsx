@@ -19,6 +19,49 @@ export function AppProvider({ children }) {
     const [myKits, setMyKits] = useState([]);
     const [loadingKits, setLoadingKits] = useState(false);
 
+    // --- Authentication State ---
+    const [user, setUser] = useState(null);
+
+    // Load session from localStorage on mount
+    useEffect(() => {
+        const storedUser = localStorage.getItem('legoai_user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+    }, []);
+
+    const login = async (username, password) => {
+        try {
+            setError(null);
+            // Query Supabase for the user
+            const { data, error } = await supabase
+                .from('app_users')
+                .select('*')
+                .eq('username', username)
+                .eq('password', password) // Comparing plain text as requested
+                .single();
+
+            if (error || !data) {
+                throw new Error('Invalid credentials');
+            }
+
+            const sessionUser = { username: data.username };
+            setUser(sessionUser);
+            localStorage.setItem('legoai_user', JSON.stringify(sessionUser));
+            return sessionUser;
+
+        } catch (err) {
+            console.error('Login error:', err);
+            throw err;
+        }
+    };
+
+    const logout = () => {
+        setUser(null);
+        localStorage.removeItem('legoai_user');
+        setResults([]); // Clear any session data if needed
+    };
+
     // Initial Load of Kits
     useEffect(() => {
         fetchKits();
@@ -243,7 +286,11 @@ export function AppProvider({ children }) {
             loadingKits,
             addKitToCollection,
             updateKitStatus,
-            deleteKit
+            deleteKit,
+            // Auth expose
+            user,
+            login,
+            logout
         }}>
             {children}
         </AppContext.Provider>
