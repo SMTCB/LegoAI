@@ -152,7 +152,7 @@ export default function BuildCard({ build }) {
 
                     <div className="mt-auto pt-2">
                         <a
-                            href={`https://www.lego.com/service/buildinginstructions/${set_id}`}
+                            href={`https://www.lego.com/service/buildinginstructions/${set_id.split('-')[0]}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-900 hover:bg-black text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-xl transform active:scale-[0.98]"
