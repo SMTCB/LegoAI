@@ -79,15 +79,16 @@ module.exports = async (req, res) => {
               "part_num": "3001", 
               "color_id": 0, 
               "quantity": 1, 
+              "confidence": 95,
               "name": "Brick 2x4"
             }
           ]
         }
         
         EXAMPLES of Reasoning:
-        - "I see a tall white piece with 1 stud on top. It is NOT a Plate. It is a Brick 1x1." -> Part 3005.
-        - "I see a flat grey piece, 2 studs wide and 4 long. It has no studs on top, it is smooth." -> Tile 2x4 (Part 87079).
-        - "I see a tall brick, 1 stud wide, 3 bricks high." -> Brick 1x1x3 (Part 14716).
+        - "I see a tall white piece clearly. It is definitely a Brick 1x1." -> confidence: 95.
+        - "I see a flat grey piece, maybe 2x4 or 2x6, it is blurry." -> confidence: 60.
+        - "I see something red, possibly a brick but obstructed." -> confidence: 40.
 
         If unsure of the ID, use the most descriptive name possible (e.g., "Plate 1x2 with Clip").`;
 

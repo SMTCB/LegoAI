@@ -4,6 +4,7 @@ import CameraCapture from '../components/CameraCapture';
 import BuildCard from '../components/BuildCard';
 import PartsCatalog from '../components/PartsCatalog';
 import TutorialOverlay from '../components/TutorialOverlay';
+import VibeSlider from '../components/VibeSlider';
 import { useApp } from '../context/AppContext';
 
 export default function BuilderView({ onHome }) {
@@ -16,6 +17,26 @@ export default function BuilderView({ onHome }) {
     // 'intro' (landing), 'camera' (scanning), 'parts_list' (review)
     const [mode, setMode] = useState('intro');
     const [showTutorial, setShowTutorial] = useState(false);
+
+    // Vibe Slider State (Default 90 = Precision)
+    const [vibeLevel, setVibeLevel] = useState(90);
+
+    const handleFindBuilds = () => {
+        // Filter parts based on Vibe Level
+        // High Vibe (>80) = High Confidence only (>80%)
+        // Low Vibe (<40) = Anything goes (>20%)
+        // Medium = Balanced (>50%)
+
+        const minConfidence = vibeLevel > 80 ? 80 : vibeLevel < 40 ? 20 : 50;
+
+        // Filter active parts. Note: We need 'confidence' in parts data. 
+        // If not present (legacy scans), we assume 100%.
+        const filteredParts = parts.filter(p => (p.confidence || 100) >= minConfidence);
+
+        console.log(`[Vibe Check] Level: ${vibeLevel}, MinConf: ${minConfidence}, Parts: ${filteredParts.length}/${parts.length}`);
+
+        findBuilds(filteredParts, vibeLevel);
+    };
 
     // Auto-switch to camera if we have images (e.g. returning from another tab)
     useEffect(() => {
@@ -269,18 +290,39 @@ export default function BuilderView({ onHome }) {
                         </button>
                     )}
 
-                    {/* Find Builds Button (Floating) */}
+                    {/* Vibe Slider & Find Builds - Side by Side */}
                     {parts.length > 0 && currentBatchImages.length === 0 && (
-                        <button
-                            onClick={findBuilds}
-                            className="absolute -top-8 w-full max-w-xs bg-lego-yellow hover:bg-yellow-400 text-gray-900 px-8 py-4 rounded-2xl shadow-lego-card border-4 border-white flex items-center justify-center gap-3 font-black text-lg transition-transform hover:scale-105"
-                        >
-                            <Grid size={24} />
-                            Find Builds ({parts.length})
-                        </button>
+                        <div className="absolute -top-32 w-full max-w-md flex items-end justify-center gap-4 animate-in slide-in-from-bottom-5 px-4 pointer-events-none">
+                            {/* Slider (Left Side) */}
+                            <div className="pointer-events-auto h-64">
+                                <VibeSlider
+                                    value={vibeLevel}
+                                    onChange={setVibeLevel}
+                                    isAnalyzing={scanStatus === 'matching'}
+                                />
+                            </div>
+
+                            {/* Find Button (Right Side) */}
+                            <div className="pointer-events-auto pb-8">
+                                <button
+                                    onClick={handleFindBuilds}
+                                    className={`w-full bg-lego-yellow hover:bg-yellow-400 text-gray-900 px-8 py-6 rounded-2xl shadow-lego-card border-4 border-white flex flex-col items-center justify-center gap-1 font-black leading-tight transition-transform hover:scale-105 ${scanStatus === 'matching' ? 'opacity-50 pointer-events-none' : ''}`}
+                                >
+                                    <div className="flex items-center gap-2 text-xl">
+                                        <Grid size={28} />
+                                        <span>Build It!</span>
+                                    </div>
+                                    <span className="text-xs font-bold opacity-75">
+                                        {vibeLevel > 80 ? 'Strict Match' : vibeLevel < 40 ? 'Creative Mode' : 'Balanced'}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
                     )}
 
-                    <p className="text-gray-500 font-bold text-sm">Take 2-3 photos of the same pile</p>
+                    <p className="text-gray-500 font-bold text-sm">
+                        {currentBatchImages.length > 0 ? "Take 2-3 photos of the same pile" : "Adjust the Vibe, then hit Build!"}
+                    </p>
                 </div>
 
             </div>

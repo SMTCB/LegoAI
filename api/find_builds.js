@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
         return;
     }
 
-    const { parts } = req.body;
+    const { parts, min_match_percentage = 80 } = req.body;
 
     if (!parts || parts.length === 0) {
         return res.status(400).json({ error: 'No parts provided' });
@@ -21,48 +21,64 @@ module.exports = async (req, res) => {
     try {
         const apiKey = process.env.REBRICKABLE_API_KEY;
 
-        // Strategy: 
-        // 1. Identify the "most unique" part (usually the one with the highest part_num or longest name, or just the first non-basic brick).
-        // 2. Search Rebrickable for sets containing that part element.
-        // 3. Fallback to a generic search if no specific unique part is found.
+        // Vibe Match Strategy:
+        // 1. "Precision" Mode (High min_match_percentage): Strict matching, relies on unique parts.
+        // 2. "Chaos" Mode (Low min_match_percentage): Loose matching, returns sets that share *any* parts.
 
-        // Simple Heuristic: Pick the first part that isn't a standard 2x4 brick (3001) or 2x2 brick (3003).
+        // Heuristic: Pick the most unique part to drive the search
         const uniquePart = parts.find(p => !['3001', '3003', '3020', '3023'].includes(p.part_num)) || parts[0];
         const partNum = uniquePart.part_num;
         const colorId = uniquePart.color_id || 0;
 
-        console.log(`[API] Finding builds for part: ${partNum} (Color: ${colorId})`);
+        console.log(`[API] Finding builds for part: ${partNum} (Color: ${colorId}). Threshold: ${min_match_percentage}%`);
 
         // Rebrickable Endpoint: Get sets containing a specific part/color
-        // POST /api/v3/lego/elements/{element_id}/sets/ is hard because we don't have element_id easily.
-        // GET /api/v3/lego/parts/{part_num}/colors/{color_id}/sets/ is better.
-
-        const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=10&ordering=-year`;
+        const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=20&ordering=-year`;
 
         const response = await axios.get(url);
 
-        // Transform for UI
-        const suggested_builds = response.data.results.map(set => ({
+        // Transform for UI and Apply "Vibe Check"
+        let suggested_builds = response.data.results.map(set => ({
             set_id: set.set_num,
             name: set.name,
             set_img_url: set.set_img_url,
             num_parts: set.num_parts,
             year: set.year,
             set_url: set.set_url,
-            match_score: Math.floor(Math.random() * 20) + 80 // Fake "match score" for now since we rely on single-part lookup
+            // Mock Match Score Logic:
+            // - If threshold is high, we simulate a strict match (85-100%)
+            // - If threshold is low, we simulate a loose match (30-80%)
+            match_score: calculateMockMatchScore(min_match_percentage, set.num_parts, parts.length)
         }));
+
+        // Filter based on the slider threshold
+        suggested_builds = suggested_builds.filter(b => b.match_score >= min_match_percentage);
+
+        // Sort by match score
+        suggested_builds.sort((a, b) => b.match_score - a.match_score);
 
         res.status(200).json({ suggested_builds });
 
     } catch (error) {
         console.error('Find Builds Error:', error.message);
-
-        // Fallback: If specific part lookup fails, return some "Creative Classic" sets
-        const fallbackSets = [
-            { set_id: '10698-1', name: 'Large Creative Brick Box', set_img_url: 'https://cdn.rebrickable.com/media/sets/10698-1.jpg', num_parts: 790, match_score: 100, set_url: 'https://rebrickable.com/sets/10698-1/large-creative-brick-box/' },
-            { set_id: '11011-1', name: 'Bricks and Animals', set_img_url: 'https://cdn.rebrickable.com/media/sets/11011-1.jpg', num_parts: 1500, match_score: 95, set_url: 'https://rebrickable.com/sets/11011-1/bricks-and-animals/' }
-        ];
-
-        res.status(200).json({ suggested_builds: fallbackSets });
+        res.status(500).json({ error: 'Failed to fetch builds' });
     }
 };
+
+function calculateMockMatchScore(threshold, setParts, userParts) {
+    // In a real app, this would be: (Common Parts / Set Parts) * 100
+    // Here, we fake it to demonstrate the UI behavior.
+
+    const variance = Math.floor(Math.random() * 15);
+
+    if (threshold > 80) {
+        // Strict Mode: Return high scores
+        return 85 + variance;
+    } else if (threshold < 40) {
+        // Chaos Mode: Return lower scores
+        return 30 + (Math.random() * 50);
+    } else {
+        // Balanced Mode
+        return 60 + (Math.random() * 30);
+    }
+}

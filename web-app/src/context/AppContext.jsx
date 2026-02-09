@@ -229,8 +229,11 @@ export function AppProvider({ children }) {
         setScanStatus('idle');
     };
 
-    const findBuilds = async () => {
-        if (parts.length === 0) return;
+    const findBuilds = async (activeParts, matchThreshold = 80) => {
+        // If activeParts is provided, use it. Otherwise use the global 'parts' state.
+        const partsPayload = (activeParts && activeParts.length > 0) ? activeParts : parts;
+
+        if (partsPayload.length === 0) return;
 
         setScanStatus('matching');
         setError(null);
@@ -240,7 +243,10 @@ export function AppProvider({ children }) {
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ parts })
+                body: JSON.stringify({
+                    parts: partsPayload,
+                    min_match_percentage: matchThreshold
+                })
             });
 
             if (!response.ok) throw new Error("Matching Failed");
