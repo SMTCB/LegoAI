@@ -10,6 +10,8 @@ Create a `.env` file in the root of the frontend project and configure your depl
 | `VITE_SUPABASE_ANON_KEY` | Your Supabase Anonymous Key |
 | `VITE_N8N_WEBHOOK_URL` | The public URL for your n8n workflow (e.g., via ngrok) |
 
+**Development Rule**: All code changes must be immediately committed and pushed to git.
+
 **Note**: `REBRICKABLE_API_KEY` is used within **n8n**, not the frontend.
 
 ## Logic Specifications
