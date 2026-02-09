@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { Search, Loader2, Home } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import BuildCard from '../components/BuildCard';
