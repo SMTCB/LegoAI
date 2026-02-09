@@ -102,7 +102,21 @@ module.exports = async (req, res) => {
         let reasoning = "No reasoning provided";
 
         try {
-            const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            // Robust JSON extraction: look for the first '{' and the last '}'
+            const text = responseText.trim();
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+
+            let cleanJson = text;
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                cleanJson = text.substring(firstBrace, lastBrace + 1);
+            }
+
+            // Fallback: Remove markdown code blocks if the substring method failed
+            if (firstBrace === -1) {
+                cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            }
+
             const parsed = JSON.parse(cleanJson);
 
             // Handle both new object format and potential fallback array
@@ -119,7 +133,12 @@ module.exports = async (req, res) => {
         } catch (e) {
             console.error("JSON Parse Error:", e);
             console.error("Raw Text:", responseText);
-            return res.status(500).json({ error: 'Failed to parse AI response', raw: responseText });
+            // Return the raw text to the client so we can see it in the UI error
+            return res.status(500).json({
+                error: 'Failed to parse AI response. The model probably hallucinated valid JSON.',
+                details: e.message,
+                raw_response: responseText.substring(0, 200) + "..."
+            });
         }
 
         if (!Array.isArray(identifiedParts)) {
@@ -127,6 +146,7 @@ module.exports = async (req, res) => {
         }
 
         // Hydrate with Images from Rebrickable
+        // We use a Promise.allSettled or just Promise.all to ensure we don't fail everything if one image fails
         const fetchPromises = identifiedParts.map(async (part) => {
             try {
                 // Fetch Part Details (for the image)

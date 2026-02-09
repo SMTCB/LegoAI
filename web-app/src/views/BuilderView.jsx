@@ -290,19 +290,21 @@ export default function BuilderView({ onHome }) {
                         </button>
                     )}
 
-                    {/* Vibe Slider & Find Builds - Side by Side */}
-                    {parts.length > 0 && currentBatchImages.length === 0 && (
-                        <div className="absolute -top-32 w-full max-w-md flex items-end justify-center gap-4 animate-in slide-in-from-bottom-5 px-4 pointer-events-none">
-                            {/* Slider (Left Side) */}
-                            <div className="pointer-events-auto h-64">
-                                <VibeSlider
-                                    value={vibeLevel}
-                                    onChange={setVibeLevel}
-                                    isAnalyzing={scanStatus === 'matching'}
-                                />
-                            </div>
+                    {/* Vibe Slider - Always Visible in Camera Mode */}
+                    <div className="absolute -top-40 w-full max-w-md flex items-end justify-start px-4 pointer-events-none z-40">
+                        {/* Slider Container - Left Aligned */}
+                        <div className={`pointer-events-auto h-64 transition-opacity duration-300 ${currentBatchImages.length > 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                            <VibeSlider
+                                value={vibeLevel}
+                                onChange={setVibeLevel}
+                                isAnalyzing={scanStatus === 'matching'}
+                            />
+                        </div>
+                    </div>
 
-                            {/* Find Button (Right Side) */}
+                    {/* Find Builds Button - Right Side (Only visible if parts exist and no batch) */}
+                    {parts.length > 0 && currentBatchImages.length === 0 && (
+                        <div className="absolute -top-32 w-full max-w-md flex items-end justify-end px-4 pointer-events-none z-40">
                             <div className="pointer-events-auto pb-8">
                                 <button
                                     onClick={handleFindBuilds}
@@ -321,7 +323,7 @@ export default function BuilderView({ onHome }) {
                     )}
 
                     <p className="text-gray-500 font-bold text-sm">
-                        {currentBatchImages.length > 0 ? "Take 2-3 photos of the same pile" : "Adjust the Vibe, then hit Build!"}
+                        {currentBatchImages.length > 0 ? "Take 2-3 photos of the same pile" : parts.length > 0 ? "Adjust the Vibe, then hit Build!" : "Set your Vibe & Start Scanning!"}
                     </p>
                 </div>
 
@@ -334,8 +336,9 @@ function checkError(err) {
     if (!err) return null;
     return (
         <div className="absolute bottom-32 left-4 right-4 z-30">
-            <div className="bg-lego-red text-white p-4 rounded-xl shadow-lg text-center font-black border-4 border-white animate-in slide-in-from-bottom-5">
-                {err}
+            <div className="bg-lego-red text-white p-4 rounded-xl shadow-lg text-center font-black border-4 border-white animate-in slide-in-from-bottom-5 max-w-sm mx-auto">
+                <div className="text-lg mb-1">⚠️ Scan Failed</div>
+                <div className="text-sm font-normal opacity-90 break-words">{err}</div>
             </div>
         </div>
     );

@@ -202,7 +202,17 @@ export function AppProvider({ children }) {
             });
 
             if (!response.ok) {
-                throw new Error(`Scan Failed: ${response.statusText}`);
+                let errorMessage = `Scan Failed: ${response.statusText}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMessage = errorData.error;
+                        if (errorData.details) errorMessage += ` (${errorData.details})`;
+                    }
+                } catch (e) {
+                    // Ignore JSON parse error on error response
+                }
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
