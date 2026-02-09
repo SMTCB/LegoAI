@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { Search, Loader2, Plus, Check, Home } from 'lucide-react';
+import { Search, Loader2, Home } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import BuildCard from '../components/BuildCard';
 
 export default function ExplorerView({ onHome }) {
-    const { addKitToCollection, myKits } = useApp();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -35,14 +34,6 @@ export default function ExplorerView({ onHome }) {
             setError('Could not find sets. Try again.');
         } finally {
             setLoading(false);
-        }
-    };
-
-    const isSaved = (setId) => myKits.some(k => k.set_id === setId);
-
-    const handleAdd = (set) => {
-        if (!isSaved(set.set_id)) {
-            addKitToCollection(set);
         }
     };
 
@@ -88,43 +79,19 @@ export default function ExplorerView({ onHome }) {
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                    {results.map(set => {
-                        const saved = isSaved(set.set_id);
-                        return (
-                            <div
-                                key={set.set_id}
-                                onClick={() => handleAdd(set)}
-                                className={`bg-white rounded-xl overflow-hidden border-2 shadow-sm transition-all group cursor-pointer active:scale-95 ${saved ? 'border-green-200 opacity-80' : 'border-gray-100 hover:border-lego-blue hover:shadow-lego-card'}`}
-                            >
-                                <div className="h-32 p-4 flex items-center justify-center bg-gray-50 relative border-b border-gray-100">
-                                    <img src={set.set_img_url} className="max-h-full max-w-full object-contain mix-blend-multiply" />
-                                    {saved && (
-                                        <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center backdrop-blur-[1px]">
-                                            <div className="bg-green-500 text-white p-2 rounded-full shadow-lg">
-                                                <Check size={20} strokeWidth={4} />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-3">
-                                    <h3 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2 mb-1">{set.name}</h3>
-                                    <div className="flex justify-between items-center mt-2">
-                                        <span className="text-xs text-gray-500 font-bold">{set.year} • {set.parts_count} pcs</span>
-                                        <button
-                                            disabled={saved}
-                                            className={`w-8 h-8 flex items-center justify-center rounded-lg border-2 font-bold transition-all ${saved
-                                                    ? 'bg-transparent border-transparent text-green-600'
-                                                    : 'bg-white border-lego-blue text-lego-blue group-hover:bg-lego-blue group-hover:text-white'
-                                                }`}
-                                        >
-                                            {saved ? <Check size={16} /> : <Plus size={16} />}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {results.map(set => (
+                        <div key={set.set_id} className="h-full">
+                            <BuildCard build={{
+                                set_id: set.set_id,
+                                name: set.name,
+                                set_img_url: set.set_img_url,
+                                set_url: set.set_url,
+                                num_parts: set.parts_count || set.num_parts,
+                                match_score: null // Explicitly null for search results to hide match meter
+                            }} />
+                        </div>
+                    ))}
                 </div>
             </main>
         </div>

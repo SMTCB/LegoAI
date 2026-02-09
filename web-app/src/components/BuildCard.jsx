@@ -87,14 +87,16 @@ export default function BuildCard({ build }) {
                         loading="lazy"
                     />
 
-                    {/* Match Meter */}
-                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur rounded-full p-1 shadow-sm border border-gray-100" style={{ transform: 'translateZ(30px)' }}>
-                        <CircularProgress value={score} />
-                    </div>
+                    {/* Match Score Badge - Only show if we have a score */}
+                    {match_score !== null && match_score !== undefined && (
+                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur rounded-full p-1 shadow-sm border border-gray-100" style={{ transform: 'translateZ(30px)' }}>
+                            <CircularProgress value={score} />
+                        </div>
+                    )}
 
                     {/* Color Swap Indicator (Mock) */}
                     {/* Logic for color swaps would ideally come from backend. Assuming < 100 match might imply swaps or missing. */}
-                    {score < 100 && score > 80 && (
+                    {match_score !== null && score < 100 && score > 80 && (
                         <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-xs font-bold text-orange-600 flex items-center gap-1 shadow-sm border border-gray-100" title="Includes Color Swaps">
                             <Palette size={12} />
                             <span>Swaps</span>
@@ -126,8 +128,8 @@ export default function BuildCard({ build }) {
                         <span>{num_parts} parts</span>
                     </div>
 
-                    {/* Missing Pieces Toggle (Mock logic) */}
-                    {score < 100 && (
+                    {/* Missing Pieces Toggle (Mock logic) - Only if score exists */}
+                    {match_score !== null && score < 100 && (
                         <div className="mb-4">
                             <button
                                 onClick={() => setShowMissing(!showMissing)}
