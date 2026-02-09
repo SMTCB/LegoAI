@@ -137,7 +137,7 @@ export default function ExplorerView({ onHome }) {
                                         onClick={() => setMinParts(10)}
                                         className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${minParts === 10 ? 'bg-white text-lego-red shadow-sm' : 'text-white hover:bg-white/10'}`}
                                     >
-                                        Sets Only (>10 pcs)
+                                        Sets Only ({'>'}10 pcs)
                                     </button>
                                     <button
                                         onClick={() => setMinParts(0)}
