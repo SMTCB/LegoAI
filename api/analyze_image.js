@@ -59,31 +59,30 @@ module.exports = async (req, res) => {
             ]
         });
 
-        // Advanced System Prompt for Multi-View Analysis
+        // Advanced System Prompt with Chain-of-Thought
         const prompt = `You are an expert LEGO Part Identifier.
         You are viewing multiple photos of the SAME batch of Lego parts from different angles.
         
-        CRITICAL INSTRUCTIONS:
-        1. **Combine Views**: Use the multiple angles to determine the 3D shape (Height/Depth).
-           - If Photo 1 is top-down, use Photo 2 (side view) to check if it's a Brick (Tall) or Plate (Flat).
-        2. **Deduplicate**: These photos show the SAME objects. Do NOT double count. 
-           - If you see 3 red bricks in Photo A and the same 3 red bricks in Photo B, the total is 3, NOT 6.
-           - Only count unique objects.
-        3. **Count Studs & Identify**: Accurate stud count (e.g. 2x4) is paramount.
+        CRITICAL PROCESS:
+        1. **Analyze Shape**: Is it a Brick (tall), Plate (flat), or Tile (smooth)?
+        2. **Count Studs**: Count the studs precisely (e.g., 2 rows of 4 studs = 2x4).
+        3. **Check Features**: Look for clips, holes, slopes, or prints.
+        4. **Deduplicate**: The photos show the SAME parts. Do not double count.
         
-        4. **Estimate Color**: Use standard Lego color names.
+        RETURN A JSON OBJECT. Format:
+        {
+          "reasoning": "Photo 1 shows a red piece. It is tall (Brick) with 2x4 studs. I also see a blue flat piece...",
+          "identified_parts": [
+            { 
+              "part_num": "3001", 
+              "color_id": 0, 
+              "quantity": 1, 
+              "name": "Brick 2x4"
+            }
+          ]
+        }
         
-        RETURN ONLY A JSON ARRAY. Format:
-        [
-          { 
-            "part_num": "3001", 
-            "color_id": 0, 
-            "quantity": 1, 
-            "name": "Brick 2x4"
-          }
-        ]
-        
-        If unsure of the exact Part Num, describe it precisely in the "name" field.`;
+        If unsure of the ID, use the most descriptive name possible (e.g., "Plate 1x2 with Clip").`;
 
         const result = await model.generateContent([
             prompt,
@@ -94,8 +93,21 @@ module.exports = async (req, res) => {
         let identifiedParts = [];
         try {
             const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-            identifiedParts = JSON.parse(cleanJson);
+            const parsed = JSON.parse(cleanJson);
+
+            // Handle both new object format and potential fallback array
+            if (Array.isArray(parsed)) {
+                identifiedParts = parsed;
+            } else if (parsed.identified_parts) {
+                console.log("[AI Reasoning]:", parsed.reasoning); // Log reasoning for debug
+                identifiedParts = parsed.identified_parts;
+            } else {
+                identifiedParts = [];
+            }
+
         } catch (e) {
+            console.error("JSON Parse Error:", e);
+            console.error("Raw Text:", responseText);
             return res.status(500).json({ error: 'Failed to parse AI response', raw: responseText });
         }
 
