@@ -57,24 +57,49 @@ module.exports = async (req, res) => {
         const response = await axios.get(url);
 
         // Transform for UI and Apply "Vibe Check"
-        let suggested_builds = response.data.results.map(set => ({
-            set_id: set.set_num,
-            name: set.name,
-            set_img_url: set.set_img_url,
-            num_parts: set.num_parts,
-            year: set.year,
-            set_url: set.set_url,
-            // Mock Match Score Logic:
-            // - If threshold is high, we simulate a strict match (85-100%)
-            // - If threshold is low, we simulate a loose match (30-80%)
-            match_score: calculateMockMatchScore(min_match_percentage, set.num_parts, parts.length)
-        }));
+        let suggested_builds = response.data.results.map(set => {
+            // Realistic "Possibility Score"
+            // If I have 15 parts, and the set has 15 parts, score is 100%.
+            // If the set has 3000 parts, score is close to 0%.
+            // Formula: (UserParts / SetParts) * 100
+            // We cap it at 100%.
+            let ratio = (parts.length / set.num_parts);
+            if (ratio > 1) ratio = 1; // logical cap
 
-        // Filter based on the slider threshold
-        suggested_builds = suggested_builds.filter(b => b.match_score >= min_match_percentage);
+            // Adjust based on Vibe
+            // Precision Mode (>80): We punish large sets effectively.
+            // Creative Mode (<40): We boost the score (optimism).
+            let score = ratio * 100;
 
-        // Sort by match score
+            if (min_match_percentage < 40) {
+                score = score * 1.5; // Creative boost
+            }
+
+            return {
+                set_id: set.set_num,
+                name: set.name,
+                set_img_url: set.set_img_url,
+                num_parts: set.num_parts,
+                year: set.year,
+                set_url: set.set_url,
+                match_score: Math.round(score)
+            };
+        });
+
+        // Filter: meaningful results only. 
+        // If "Strict", we want high match scores.
+        // If "Chaos", we accept lower scores.
+        // But we ALWAYS sort by Match Score (Highest first -> Smallest sets)
+        // Filter: meaningful results only. 
+        // 1. Must have at least 10 parts (avoid "Spare Parts" sets or Glitched 0-part sets)
+        // 2. Score must meet the Vibe Threshold (min_match_percentage).
+        suggested_builds = suggested_builds.filter(b => b.num_parts >= 10 && b.match_score >= min_match_percentage);
+
+        // Sort by Match Score (Highest first -> Smallest usable sets)
         suggested_builds.sort((a, b) => b.match_score - a.match_score);
+
+        // Take top 10
+        suggested_builds = suggested_builds.slice(0, 10);
 
         res.status(200).json({ suggested_builds });
 
@@ -85,19 +110,6 @@ module.exports = async (req, res) => {
 };
 
 function calculateMockMatchScore(threshold, setParts, userParts) {
-    // In a real app, this would be: (Common Parts / Set Parts) * 100
-    // Here, we fake it to demonstrate the UI behavior.
-
-    const variance = Math.floor(Math.random() * 15);
-
-    if (threshold > 80) {
-        // Strict Mode: Return high scores
-        return 85 + variance;
-    } else if (threshold < 40) {
-        // Chaos Mode: Return lower scores
-        return 30 + (Math.random() * 50);
-    } else {
-        // Balanced Mode
-        return 60 + (Math.random() * 30);
-    }
+    // Deprecated
+    return 0;
 }

@@ -151,35 +151,55 @@ export default function BuilderView({ onHome }) {
                     backgroundSize: '24px 24px'
                 }}></div>
 
-                <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6 z-10">
-                    <h2 className="text-3xl font-black text-center text-lego-red drop-shadow-sm bg-white px-4 py-2 rounded-xl shadow-lego-sm border-2 border-gray-900 -rotate-2">Scan Complete!</h2>
+                <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8 z-10 w-full max-w-md mx-auto">
+                    <h2 className="text-3xl font-black text-center text-lego-red drop-shadow-sm bg-white px-6 py-3 rounded-xl shadow-lego-sm border-2 border-gray-900 -rotate-2 transform hover:rotate-0 transition-transform">
+                        Scan Complete!
+                    </h2>
 
-                    <div className="bg-white rounded-xl p-4 w-full max-w-sm border-2 border-gray-900 shadow-lego-card">
-                        <div className="flex justify-between items-center mb-4 border-b-2 border-gray-100 pb-2">
-                            <span className="text-gray-500 font-bold">Found:</span>
-                            <span className="text-xl font-black text-lego-blue">{currentBatchResults.length} parts</span>
+                    <div className="bg-white rounded-2xl p-6 w-full shadow-lego-card border-4 border-gray-900 flex flex-col max-h-[50vh]">
+                        <div className="flex justify-between items-center mb-4 border-b-2 border-gray-100 pb-4">
+                            <span className="text-gray-500 font-bold text-lg">Found:</span>
+                            <span className="text-2xl font-black text-lego-blue">{currentBatchResults.length} parts</span>
                         </div>
 
-                        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
                             {currentBatchResults.map((p, i) => (
-                                <div key={i} className="flex items-center gap-3 text-sm border-b border-gray-100 pb-2 last:border-0 hover:bg-gray-50 p-1 rounded transition-colors">
-                                    {p.part_img_url ? (
-                                        <img src={p.part_img_url} className="w-10 h-10 object-contain bg-white border border-gray-200 rounded p-0.5" />
-                                    ) : <div className="w-10 h-10 bg-gray-200 rounded" />}
-                                    <span className="font-bold text-gray-800">{p.quantity}x {p.name}</span>
+                                <div key={i} className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                    <div className="w-16 h-16 bg-white rounded-lg border border-gray-200 p-1 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                                        {p.part_img_url ? (
+                                            <img
+                                                src={p.part_img_url}
+                                                className="w-full h-full object-contain"
+                                                referrerPolicy="no-referrer"
+                                                alt={p.name}
+                                                onError={(e) => {
+                                                    // Fallback if image fails
+                                                    e.target.style.display = 'none';
+                                                    e.target.parentNode.classList.add('bg-gray-100');
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
+                                                <Layers size={20} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-gray-800 text-lg leading-tight">{p.quantity}x {p.name}</span>
+                                        <span className="text-xs text-gray-500 font-bold uppercase tracking-wider">{p.color_name || 'Lego Part'}</span>
+                                    </div>
                                 </div>
                             ))}
-
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-3 w-full max-w-xs">
-                        <button onClick={commitBatch} className="w-full bg-lego-blue hover:bg-blue-600 text-white font-black py-4 rounded-xl shadow-lego-card border-2 border-gray-900 transform active:translate-y-[2px] active:shadow-none transition-all flex items-center justify-center gap-2 text-lg">
-                            <Layers size={24} />
+                    <div className="flex flex-col gap-4 w-full">
+                        <button onClick={commitBatch} className="w-full bg-lego-blue hover:bg-blue-600 text-white font-black py-4 rounded-xl shadow-lego-card border-2 border-gray-900 transform active:translate-y-[2px] active:shadow-none transition-all flex items-center justify-center gap-3 text-xl">
+                            <Layers size={28} />
                             Add to Collection
                         </button>
-                        <button onClick={clearCurrentBatch} className="w-full bg-white hover:bg-gray-50 text-red-600 font-bold py-3 rounded-xl border-2 border-red-600 flex items-center justify-center gap-2">
-                            <X size={20} />
+                        <button onClick={clearCurrentBatch} className="w-full bg-white hover:bg-red-50 text-red-600 font-bold py-4 rounded-xl border-2 border-red-600 flex items-center justify-center gap-2 text-lg shadow-sm">
+                            <X size={24} />
                             Trash & Retry
                         </button>
                     </div>
@@ -231,8 +251,9 @@ export default function BuilderView({ onHome }) {
             </div>
 
             {/* Loading States */}
+            {/* Loading States - High Z-Index to cover everything */}
             {scanStatus === 'scanning' && (
-                <div className="absolute inset-0 z-50 bg-lego-yellow/95 flex flex-col items-center justify-center text-gray-900">
+                <div className="absolute inset-0 z-[100] bg-lego-yellow flex flex-col items-center justify-center text-gray-900">
                     <Loader2 size={64} className="animate-spin text-lego-red mb-6" />
                     <h2 className="text-3xl font-black mb-2 tracking-tight">Analyzing...</h2>
                     <p className="font-bold opacity-75 text-lg">Identifying your bricks</p>
@@ -240,7 +261,7 @@ export default function BuilderView({ onHome }) {
             )}
 
             {scanStatus === 'matching' && (
-                <div className="absolute inset-0 z-50 bg-lego-blue/95 flex flex-col items-center justify-center text-white">
+                <div className="absolute inset-0 z-[100] bg-lego-blue flex flex-col items-center justify-center text-white">
                     <Loader2 size={64} className="animate-spin text-white mb-6" />
                     <h2 className="text-3xl font-black mb-2 tracking-tight">Finding Builds...</h2>
                     <p className="font-bold opacity-75 text-lg">Matching {parts.length} parts</p>
