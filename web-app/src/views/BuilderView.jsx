@@ -173,9 +173,15 @@ export default function BuilderView({ onHome }) {
                                                 referrerPolicy="no-referrer"
                                                 alt={p.name}
                                                 onError={(e) => {
-                                                    // Fallback if image fails
-                                                    e.target.style.display = 'none';
-                                                    e.target.parentNode.classList.add('bg-gray-100');
+                                                    // Fallback Strategy
+                                                    if (p.backup_img_url && e.target.src !== p.backup_img_url) {
+                                                        // Try backup (Brickognize WebP)
+                                                        e.target.src = p.backup_img_url;
+                                                    } else {
+                                                        // Give up -> Placeholder
+                                                        e.target.style.display = 'none';
+                                                        e.target.parentNode.classList.add('bg-gray-100');
+                                                    }
                                                 }}
                                             />
                                         ) : (

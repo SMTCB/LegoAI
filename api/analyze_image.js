@@ -179,7 +179,11 @@ async function processSingleImage(base64String, index) {
                     'orange': 4,
                     'tan': 19,
                     'purple': 24,
-                    'lime': 27
+                    'lime': 27,
+                    'gold': 294, // Pearl Gold
+                    'silver': 297, // Pearl Silver
+                    'trans-clear': 12,
+                    'clear': 12
                 };
 
                 for (const [colorName, id] of Object.entries(colorMap)) {
@@ -189,10 +193,24 @@ async function processSingleImage(base64String, index) {
                     }
                 }
 
+                // Prefer Rebrickable LDraw Renders (Clean PNGs) if we have a valid color
+                // Fallback to Rebrickable White (15) if color is unknown (Better than WebP often)
+                // But keep original Brickognize URL as backup in case Rebrickable 404s
+                let partImgUrl = topMatch.img_url;
+                let backupImgUrl = topMatch.img_url;
+
+                if (colorId !== null) {
+                    partImgUrl = `https://cdn.rebrickable.com/media/parts/ldraw/${colorId}/${topMatch.id}.png`;
+                } else {
+                    // Try Default White (15) as primary guessing
+                    partImgUrl = `https://cdn.rebrickable.com/media/parts/ldraw/15/${topMatch.id}.png`;
+                }
+
                 return {
                     name: topMatch.name,
-                    part_num: topMatch.id, // This is what we needed!
-                    part_img_url: topMatch.img_url,
+                    part_num: topMatch.id,
+                    part_img_url: partImgUrl,
+                    backup_img_url: backupImgUrl,
                     confidence: Math.round(topMatch.score * 100),
                     source: 'brickognize',
                     quantity: 1,
