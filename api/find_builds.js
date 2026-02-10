@@ -25,14 +25,33 @@ module.exports = async (req, res) => {
         // 1. "Precision" Mode (High min_match_percentage): Strict matching, relies on unique parts.
         // 2. "Chaos" Mode (Low min_match_percentage): Loose matching, returns sets that share *any* parts.
 
-        // Heuristic: Pick the most unique part to drive the search
+        // Heuristic: Pick the most unique part.
         const uniquePart = parts.find(p => !['3001', '3003', '3020', '3023'].includes(p.part_num)) || parts[0];
         const partNum = uniquePart.part_num;
-        const colorId = uniquePart.color_id || 0;
+        let colorId = uniquePart.color_id;
+
+        // If no color ID (or invalid 0), try to find the most popular color for this part
+        if (!colorId || colorId === 0) {
+            console.log(`[API] Color ID missing for part ${partNum}. Fetching most popular color...`);
+            try {
+                const colorsUrl = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/?key=${apiKey}`;
+                const colorsRes = await axios.get(colorsUrl);
+                const colors = colorsRes.data.results;
+                if (colors && colors.length > 0) {
+                    // Sort by num_sets desc
+                    colors.sort((a, b) => b.num_sets - a.num_sets);
+                    colorId = colors[0].color_id;
+                    console.log(`[API] Inferred Color ID: ${colorId} (${colors[0].color_name}) for part ${partNum}`);
+                }
+            } catch (colorErr) {
+                console.warn(`[API] Failed to fetch colors for part ${partNum}:`, colorErr.message);
+                colorId = 1; // Fallback to Blue or Black(0)? Black is 0. 1 is Blue.
+            }
+        }
 
         console.log(`[API] Finding builds for part: ${partNum} (Color: ${colorId}). Threshold: ${min_match_percentage}%`);
 
-        // Rebrickable Endpoint: Get sets containing a specific part/color
+        // Rebrickable Endpoint
         const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=20&ordering=-year`;
 
         const response = await axios.get(url);

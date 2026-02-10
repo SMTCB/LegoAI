@@ -262,12 +262,33 @@ export default function BuilderView({ onHome }) {
                         <h2 className="text-2xl font-black text-gray-900 mb-2">{parts.length} Parts Scanned</h2>
                         <p className="text-gray-500 font-bold mb-6">Ready to find something to build?</p>
 
-                        <button
-                            onClick={() => { clearSession(); }}
-                            className="text-red-500 font-bold hover:underline text-sm mb-4"
-                        >
-                            Clear & Start Over
-                        </button>
+                        <div className="flex flex-col gap-3 w-full">
+                            <button
+                                onClick={handleFindBuilds}
+                                className={`w-full bg-lego-blue hover:bg-blue-600 text-white py-4 rounded-xl shadow-lego-card border-2 border-gray-900 flex items-center justify-center gap-2 font-black text-xl transition-transform active:scale-95 ${scanStatus === 'matching' ? 'opacity-50 pointer-events-none' : ''}`}
+                            >
+                                <Grid size={24} />
+                                <span>Build It!</span>
+                            </button>
+
+                            <button
+                                onClick={() => { /* Resetting involves clearing? No, just showing camera. */
+                                    // Actually we just need to set showCamera to true? 
+                                    // But showing camera depends on state. 
+                                    // We can just add more images?
+                                    // Or "Clear & Start Over" is enough?
+                                    // The user might want to add more to the existing list.
+                                    // To do that, we need to go back to camera mode.
+                                    // But camera mode is hidden if parts > 0.
+                                    // We need a 'Scanning' mode toggle?
+                                    // For now, let's keep Clear & Start Over. 
+                                    clearSession();
+                                }}
+                                className="text-gray-500 font-bold hover:text-red-500 hover:underline text-sm py-2"
+                            >
+                                Clear & Start Over
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -332,26 +353,6 @@ export default function BuilderView({ onHome }) {
                         />
                     </div>
                 </div>
-
-                {/* Find Builds Button - Right Side (Only visible if parts exist and no batch) */}
-                {parts.length > 0 && currentBatchImages.length === 0 && (
-                    <div className="absolute -top-32 w-full max-w-md flex items-end justify-end px-4 pointer-events-none z-40">
-                        <div className="pointer-events-auto pb-8">
-                            <button
-                                onClick={handleFindBuilds}
-                                className={`w-full bg-lego-yellow hover:bg-yellow-400 text-gray-900 px-8 py-6 rounded-2xl shadow-lego-card border-4 border-white flex flex-col items-center justify-center gap-1 font-black leading-tight transition-transform hover:scale-105 ${scanStatus === 'matching' ? 'opacity-50 pointer-events-none' : ''}`}
-                            >
-                                <div className="flex items-center gap-2 text-xl">
-                                    <Grid size={28} />
-                                    <span>Build It!</span>
-                                </div>
-                                <span className="text-xs font-bold opacity-75">
-                                    {vibeLevel > 80 ? 'Strict Match' : vibeLevel < 40 ? 'Creative Mode' : 'Balanced'}
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                )}
 
                 {/* Scan More Button (Only if Camera is Hidden) */}
                 {!showCamera && (

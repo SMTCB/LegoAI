@@ -159,6 +159,36 @@ async function processSingleImage(base64String, index) {
                 // We accept anything > 30% as a "best guess" for ID.
                 console.log(`[Image ${index}] Brickognize ID: "${part.name}" -> "${topMatch.name}" (${(topMatch.score * 100).toFixed(0)}%) [${topMatch.id}]`);
 
+                // Try to map color from Gemini name to Rebrickable ID
+                let colorId = null;
+                const nameLower = part.name.toLowerCase();
+                const colorMap = {
+                    'black': 0,
+                    'blue': 1,
+                    'green': 2,
+                    'teal': 3, // Dark Turquoise
+                    'red': 5,
+                    'dark pink': 26,
+                    'pink': 23,
+                    'brown': 8,
+                    'light gray': 9,
+                    'dark gray': 10,
+                    'gray': 71, // Assume Light Bluish Gray
+                    'yellow': 14,
+                    'white': 15,
+                    'orange': 4,
+                    'tan': 19,
+                    'purple': 24,
+                    'lime': 27
+                };
+
+                for (const [colorName, id] of Object.entries(colorMap)) {
+                    if (nameLower.includes(colorName)) {
+                        colorId = id;
+                        break;
+                    }
+                }
+
                 return {
                     name: topMatch.name,
                     part_num: topMatch.id, // This is what we needed!
@@ -166,7 +196,8 @@ async function processSingleImage(base64String, index) {
                     confidence: Math.round(topMatch.score * 100),
                     source: 'brickognize',
                     quantity: 1,
-                    original_gemini_name: part.name
+                    original_gemini_name: part.name,
+                    color_id: colorId
                 };
             }
 
