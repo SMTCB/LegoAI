@@ -108,9 +108,10 @@ async function processSingleImage(base64String, index) {
 
             if (w <= 10 || h <= 10) return { ...part, quantity: 1, source: 'gemini_small_bbox' };
 
-            // Generate Crop
+            // Generate Crop (Resized for Thumbnail - Max 150px)
             cropBuffer = await sharp(imgBuffer)
                 .extract({ left, top, width: w, height: h })
+                .resize({ width: 150, fit: 'inside' }) // Ensure it's small enough for API payload
                 .toBuffer();
 
             cropBase64 = `data:image/jpeg;base64,${cropBuffer.toString('base64')}`;
