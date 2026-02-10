@@ -78,7 +78,6 @@ async function processSingleImage(base64String, index) {
 
     // 2. Call Gemini for Detection (Stage 1)
     console.log(`[Image ${index}] Stage 1: Gemini Detection...`);
-    // Use gemini-1.5-flash or gemini-2.0-flash if available. Using 2.0-flash as per previous code.
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Prompt asking for JSON list + bounding boxes
@@ -91,12 +90,6 @@ async function processSingleImage(base64String, index) {
     - "confidence": Your confidence (0-100).
     
     Do not include any explanation, only the JSON.
-    Example JSON:
-    {
-      "parts": [
-        { "name": "Blue Plate 1x2", "ymin": 100, "xmin": 200, "ymax": 150, "xmax": 300, "confidence": 95 }
-      ]
-    }
     `;
 
     const result = await model.generateContent([
@@ -113,74 +106,74 @@ async function processSingleImage(base64String, index) {
     const geminiParts = parseGeminiJson(geminiText);
     console.log(`[Image ${index}] Gemini found ${geminiParts.length} candidates.`);
 
-    // 3. Verify Low Confidence Parts with Brickognize (Stage 2 & 3)
-    // Threshold: Verified logic. If Gemini is < 85% sure, we ask Brickognize.
-    // Also, if part name is very generic ("Lego Part"), ask Brickognize.
+    // 3. Verify ALL Parts with Brickognize (Stage 2)
+    // We FORCE Brickognize because Gemini cannot reliably provide Part IDs (part_num).
+    // Valid Part IDs are required for Rebrickable matching.
 
     const verifiedParts = await Promise.all(geminiParts.map(async (part) => {
         // Validation check for bounding box
         if (part.ymin === undefined || part.xmin === undefined || part.ymax === undefined || part.xmax === undefined) {
-            // No bbox, can't crop. Trust Gemini or discard.
-            return { ...part, quantity: 1, source: 'gemini_no_bbox' };
+            // No bbox, can't crop. Returns a generic part. (Won't match builds easily).
+            return {
+                ...part,
+                quantity: 1,
+                source: 'gemini_no_bbox',
+                part_num: null, // Critical: No ID
+                part_img_url: null
+            };
         }
 
-        // Check if verification is needed
-        // If confidence is high (>85) AND name is specific, skip.
-        // If confidence is low OR name is generic, verify.
-        const isGeneric = part.name.toLowerCase().includes("lego part") || part.name.toLowerCase().includes("brick");
-        const needsVerification = part.confidence < 85 || (part.confidence < 95 && isGeneric);
+        try {
+            // Calculate pixel coordinates (ensure valid range)
+            const left = Math.max(0, Math.floor((part.xmin / 1000) * width));
+            const top = Math.max(0, Math.floor((part.ymin / 1000) * height));
+            const w = Math.min(width - left, Math.floor(((part.xmax - part.xmin) / 1000) * width));
+            const h = Math.min(height - top, Math.floor(((part.ymax - part.ymin) / 1000) * height));
 
-        if (needsVerification) {
-            // console.log(`[Image ${index}] Verifying "${part.name}" via Brickognize...`);
-            try {
-                // Calculate pixel coordinates (ensure valid range)
-                const left = Math.max(0, Math.floor((part.xmin / 1000) * width));
-                const top = Math.max(0, Math.floor((part.ymin / 1000) * height));
-                const w = Math.min(width - left, Math.floor(((part.xmax - part.xmin) / 1000) * width));
-                const h = Math.min(height - top, Math.floor(((part.ymax - part.ymin) / 1000) * height));
+            if (w <= 10 || h <= 10) return { ...part, quantity: 1, source: 'gemini_small_bbox' }; // Too small
 
-                if (w <= 10 || h <= 10) return { ...part, quantity: 1, source: 'gemini_small_bbox' }; // Too small
+            // Crop
+            const cropBuffer = await sharp(imgBuffer)
+                .extract({ left, top, width: w, height: h })
+                .toBuffer();
 
-                // Crop
-                const cropBuffer = await sharp(imgBuffer)
-                    .extract({ left, top, width: w, height: h })
-                    .toBuffer();
+            // Call Brickognize
+            const form = new FormData();
+            form.append('query_image', cropBuffer, { filename: 'crop.jpg', contentType: 'image/jpeg' });
 
-                // Call Brickognize
-                const form = new FormData();
-                form.append('query_image', cropBuffer, { filename: 'crop.jpg', contentType: 'image/jpeg' });
+            const brickRes = await axios.post('https://api.brickognize.com/predict/parts/', form, {
+                headers: { ...form.getHeaders() }
+            });
 
-                const brickRes = await axios.post('https://api.brickognize.com/predict/parts/', form, {
-                    headers: { ...form.getHeaders() }
-                });
+            const topMatch = brickRes.data.items?.[0];
 
-                const topMatch = brickRes.data.items?.[0];
+            if (topMatch) {
+                // We use the Brickognize result as the Source of Truth for ID
+                // Even if score is somewhat low, it's better than Gemini's "Red Brick".
+                // We accept anything > 30% as a "best guess" for ID.
+                console.log(`[Image ${index}] Brickognize ID: "${part.name}" -> "${topMatch.name}" (${(topMatch.score * 100).toFixed(0)}%) [${topMatch.id}]`);
 
-                if (topMatch && topMatch.score > 0.6) { // 60% confidence from Brickognize is usually better than Gemini's guess
-                    console.log(`[Image ${index}] Brickognize Override: "${part.name}" -> "${topMatch.name}" (${(topMatch.score * 100).toFixed(0)}%)`);
-
-                    return {
-                        ...part,
-                        name: topMatch.name,
-                        part_num: topMatch.id,
-                        part_img_url: topMatch.img_url,
-                        confidence: Math.round(topMatch.score * 100),
-                        source: 'brickognize',
-                        quantity: 1
-                    };
-                }
-
-            } catch (verErr) {
-                console.warn(`[Image ${index}] Verification failed for part:`, verErr.message);
-                // Fallback to Gemini result on error
+                return {
+                    name: topMatch.name,
+                    part_num: topMatch.id, // This is what we needed!
+                    part_img_url: topMatch.img_url,
+                    confidence: Math.round(topMatch.score * 100),
+                    source: 'brickognize',
+                    quantity: 1,
+                    original_gemini_name: part.name
+                };
             }
+
+        } catch (verErr) {
+            console.warn(`[Image ${index}] Brickognize failed for part:`, verErr.message);
         }
 
-        // Default: Return Gemini part
+        // Fallback: Return Gemini part (No ID)
         return {
             ...part,
             quantity: 1,
-            source: 'gemini_verified'
+            source: 'gemini_failed_verification',
+            part_num: null
         };
     }));
 
@@ -189,20 +182,17 @@ async function processSingleImage(base64String, index) {
 
 function parseGeminiJson(text) {
     try {
-        // Robust JSON extraction: look for the first '{' and the last '}'
         const firstBrace = text.indexOf('{');
         const lastBrace = text.lastIndexOf('}');
         if (firstBrace === -1 || lastBrace === -1) return [];
 
         let jsonStr = text.substring(firstBrace, lastBrace + 1);
-        // Clean markdown if present inside the braces (unlikely but possible)
         jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '');
 
         const parsed = JSON.parse(jsonStr);
         return parsed.parts || [];
     } catch (e) {
         console.error("Gemini JSON Parse Error:", e);
-        // console.error("Raw Text:", text); // Debug only
         return [];
     }
 }
