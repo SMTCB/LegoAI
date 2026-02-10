@@ -271,6 +271,10 @@ export function AppProvider({ children }) {
             if (!response.ok) throw new Error("Matching Failed");
 
             const data = await response.json();
+
+            // CRITICAL FIX: The API returns 'suggested_builds', not 'results'
+            // We default to [] if undefined to prevent breaking
+            console.log('[App] Builds found (suggested_builds):', data.suggested_builds?.length || 0);
             setBuilds(data.suggested_builds || []);
             setScanStatus('matching_success');
 

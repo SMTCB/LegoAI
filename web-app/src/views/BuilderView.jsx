@@ -23,7 +23,6 @@ export default function BuilderView({ onHome }) {
     const handleFindBuilds = () => {
         // UNFILTERED SEARCH
         // We pass ALL parts to the API. 
-        // VibeLevel is still passed but API ignores it or uses it for "flavor" if we want later.
         console.log(`[Find Builds] Sending all ${parts.length} unique parts (${totalPartsCount} total bricks).`);
         findBuilds(parts, vibeLevel);
     };
@@ -126,13 +125,20 @@ export default function BuilderView({ onHome }) {
                             {currentBatchResults.map((p, i) => (
                                 <div key={i} className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
                                     <div className="w-16 h-16 bg-white rounded-lg border border-gray-200 p-1 flex-shrink-0 flex items-center justify-center overflow-hidden">
-                                        {((p.part_img_url || p.backup_img_url)) ? (
+                                        {(p.part_img_url || p.backup_img_url) ? (
                                             <img
                                                 src={p.part_img_url || p.backup_img_url}
                                                 className="w-full h-full object-contain"
                                                 referrerPolicy="no-referrer"
                                                 onError={(e) => {
-                                                    if (p.backup_img_url && e.target.src !== p.backup_img_url) e.target.src = p.backup_img_url;
+                                                    // Improved Fallback: Switch to backup if available
+                                                    if (p.backup_img_url && e.target.src !== p.backup_img_url) {
+                                                        e.target.src = p.backup_img_url;
+                                                    } else {
+                                                        // Hide only if BOTH fail
+                                                        e.target.style.display = 'none';
+                                                        e.target.parentNode.classList.add('bg-gray-100');
+                                                    }
                                                 }}
                                             />
                                         ) : (
