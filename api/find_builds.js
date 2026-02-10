@@ -21,58 +21,79 @@ module.exports = async (req, res) => {
     try {
         const apiKey = process.env.REBRICKABLE_API_KEY;
 
-        // Vibe Match Strategy:
-        // 1. "Precision" Mode (High min_match_percentage): Strict matching, relies on unique parts.
-        // 2. "Chaos" Mode (Low min_match_percentage): Loose matching, returns sets that share *any* parts.
+        console.log(`[API] Starting Find Builds for ${parts.length} parts. Threshold: ${min_match_percentage}%`);
 
-        // Heuristic: Pick the most unique part.
-        const uniquePart = parts.find(p => !['3001', '3003', '3020', '3023'].includes(p.part_num)) || parts[0];
-        const partNum = uniquePart.part_num;
-        let colorId = uniquePart.color_id;
+        // Strategy: Iterate through unique parts to find candidate sets.
+        // We try up to 3 "pivot" parts. If Pivot 1 yields few results, we try Pivot 2, etc.
+        const uniqueParts = parts.filter(p => !['3001', '3003', '3020', '3023'].includes(p.part_num));
+        const pivotCandidates = uniqueParts.length > 0 ? uniqueParts : parts;
 
-        // If no color ID (or invalid 0), try to find the most popular color for this part
-        if (!colorId || colorId === 0) {
-            console.log(`[API] Color ID missing for part ${partNum}. Fetching most popular color...`);
-            try {
-                const colorsUrl = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/?key=${apiKey}`;
-                const colorsRes = await axios.get(colorsUrl);
-                const colors = colorsRes.data.results;
-                if (colors && colors.length > 0) {
-                    // Sort by num_sets desc
-                    colors.sort((a, b) => b.num_sets - a.num_sets);
-                    colorId = colors[0].color_id;
-                    console.log(`[API] Inferred Color ID: ${colorId} (${colors[0].color_name}) for part ${partNum}`);
+        let allCandidateSets = new Map(); // Use Map to deduplicate by set_num
+        let pivotsTried = 0;
+        const MAX_PIVOTS = 3;
+        const MIN_CANDIDATES = 20; // Stop if we have enough sets
+
+        for (const pivot of pivotCandidates) {
+            if (pivotsTried >= MAX_PIVOTS) break;
+            if (allCandidateSets.size >= MIN_CANDIDATES) break;
+
+            const partNum = pivot.part_num;
+            let colorId = pivot.color_id;
+
+            // If color is unknown (null) or 0 (Black - potentially default), we verify or fetch popular
+            if (colorId === null || colorId === undefined) {
+                console.log(`[API] Color ID missing for pivot ${partNum}. Fetching most popular color...`);
+                try {
+                    const colorsUrl = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/?key=${apiKey}`;
+                    const colorsRes = await axios.get(colorsUrl);
+                    const colors = colorsRes.data.results;
+                    if (colors && colors.length > 0) {
+                        colors.sort((a, b) => b.num_sets - a.num_sets);
+                        colorId = colors[0].color_id;
+                        console.log(`[API] Inferred Color ID: ${colorId} for ${partNum}`);
+                    } else {
+                        colorId = 1;
+                    }
+                } catch (e) {
+                    console.warn(`[API] Color fetch failed for ${partNum}: ${e.message}`);
+                    colorId = 1;
                 }
-            } catch (colorErr) {
-                console.warn(`[API] Failed to fetch colors for part ${partNum}:`, colorErr.message);
-                colorId = 1; // Fallback to Blue or Black(0)? Black is 0. 1 is Blue.
+            }
+
+            console.log(`[API] Pivot ${pivotsTried + 1}: ${partNum} (Color ${colorId})`);
+
+            try {
+                const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=20&ordering=-year`;
+                const response = await axios.get(url);
+                const sets = response.data.results;
+
+                if (sets) {
+                    sets.forEach(set => {
+                        allCandidateSets.set(set.set_num, set);
+                    });
+                }
+
+                pivotsTried++;
+            } catch (err) {
+                console.error(`[API] Pivot search error for ${partNum}: ${err.message}`);
+                pivotsTried++;
             }
         }
 
-        console.log(`[API] Finding builds for part: ${partNum} (Color: ${colorId}). Threshold: ${min_match_percentage}%`);
+        const candidateSets = Array.from(allCandidateSets.values());
+        console.log(`[API] Total Candidates Found: ${candidateSets.length}`);
 
-        // Rebrickable Endpoint
-        const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=20&ordering=-year`;
-
-        const response = await axios.get(url);
-
-        // Transform for UI and Apply "Vibe Check"
-        let suggested_builds = response.data.results.map(set => {
-            // Realistic "Possibility Score"
-            // If I have 15 parts, and the set has 15 parts, score is 100%.
-            // If the set has 3000 parts, score is close to 0%.
+        // Transform and Score
+        let suggested_builds = candidateSets.map(set => {
             // Formula: (UserParts / SetParts) * 100
-            // We cap it at 100%.
             let ratio = (parts.length / set.num_parts);
-            if (ratio > 1) ratio = 1; // logical cap
+            if (ratio > 1) ratio = 1;
 
-            // Adjust based on Vibe
-            // Precision Mode (>80): We punish large sets effectively.
-            // Creative Mode (<40): We boost the score (optimism).
             let score = ratio * 100;
 
+            // Boost for "Creative Mode" (Low Threshold)
             if (min_match_percentage < 40) {
-                score = score * 1.5; // Creative boost
+                score = score * 2.0; // Significant boost to show incomplete sets
             }
 
             return {
@@ -86,20 +107,22 @@ module.exports = async (req, res) => {
             };
         });
 
-        // Filter: meaningful results only. 
-        // If "Strict", we want high match scores.
-        // If "Chaos", we accept lower scores.
-        // But we ALWAYS sort by Match Score (Highest first -> Smallest sets)
-        // Filter: meaningful results only. 
-        // 1. Must have at least 10 parts (avoid "Spare Parts" sets or Glitched 0-part sets)
-        // 2. Score must meet the Vibe Threshold (min_match_percentage).
-        suggested_builds = suggested_builds.filter(b => b.num_parts >= 10 && b.match_score >= min_match_percentage);
+        // Filter
+        // 1. Must have at least 10 parts (avoid trivial/empty sets).
+        // 2. Score must be visible. If user has 5 parts and set has 100, score is 5%.
+        //    If threshold is 10%, it's hidden. We should allow lower scores if parts count is low.
+        //    Let's use a dynamic minimum.
 
-        // Sort by Match Score (Highest first -> Smallest usable sets)
+        let dynamicMinScore = 5; // Base minimum
+        if (parts.length < 10) dynamicMinScore = 1; // Show anything non-zero if user has few parts
+
+        suggested_builds = suggested_builds.filter(b => b.num_parts >= 10 && b.match_score >= dynamicMinScore);
+
+        // Sort by Match Score (Highest first)
         suggested_builds.sort((a, b) => b.match_score - a.match_score);
 
-        // Take top 10
-        suggested_builds = suggested_builds.slice(0, 10);
+        // Limit
+        suggested_builds = suggested_builds.slice(0, 20);
 
         res.status(200).json({ suggested_builds });
 
@@ -108,8 +131,3 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch builds' });
     }
 };
-
-function calculateMockMatchScore(threshold, setParts, userParts) {
-    // Deprecated
-    return 0;
-}
