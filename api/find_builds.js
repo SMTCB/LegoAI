@@ -12,26 +12,26 @@ module.exports = async (req, res) => {
         return;
     }
 
-    const { parts, min_match_percentage = 80 } = req.body;
+    const { parts } = req.body; // Removed min_match_percentage, we go raw.
 
     if (!parts || parts.length === 0) {
-        return res.status(400).json({ error: 'No parts provided' });
+        return res.status(200).json({ suggested_builds: [] });
     }
 
     try {
         const apiKey = process.env.REBRICKABLE_API_KEY;
 
-        console.log(`[API] Starting Find Builds for ${parts.length} parts. Threshold: ${min_match_percentage}%`);
+        console.log(`[API] Find Builds (Unfiltered) for ${parts.length} unique parts.`);
 
         // Strategy: Iterate through unique parts to find candidate sets.
-        // We try up to 3 "pivot" parts. If Pivot 1 yields few results, we try Pivot 2, etc.
+        // Try up to 10 "pivot" parts to ensure coverage.
         const uniqueParts = parts.filter(p => !['3001', '3003', '3020', '3023'].includes(p.part_num));
         const pivotCandidates = uniqueParts.length > 0 ? uniqueParts : parts;
 
-        let allCandidateSets = new Map(); // Use Map to deduplicate by set_num
+        let allCandidateSets = new Map();
         let pivotsTried = 0;
-        const MAX_PIVOTS = 3;
-        const MIN_CANDIDATES = 20; // Stop if we have enough sets
+        const MAX_PIVOTS = 10; // INCREASED FROM 3
+        const MIN_CANDIDATES = 100; // INCREASED FROM 20
 
         for (const pivot of pivotCandidates) {
             if (pivotsTried >= MAX_PIVOTS) break;
@@ -40,9 +40,8 @@ module.exports = async (req, res) => {
             const partNum = pivot.part_num;
             let colorId = pivot.color_id;
 
-            // If color is unknown (null) or 0 (Black - potentially default), we verify or fetch popular
             if (colorId === null || colorId === undefined) {
-                console.log(`[API] Color ID missing for pivot ${partNum}. Fetching most popular color...`);
+                // ... (Color Inference Logic) ...
                 try {
                     const colorsUrl = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/?key=${apiKey}`;
                     const colorsRes = await axios.get(colorsUrl);
@@ -50,12 +49,10 @@ module.exports = async (req, res) => {
                     if (colors && colors.length > 0) {
                         colors.sort((a, b) => b.num_sets - a.num_sets);
                         colorId = colors[0].color_id;
-                        console.log(`[API] Inferred Color ID: ${colorId} for ${partNum}`);
                     } else {
                         colorId = 1;
                     }
                 } catch (e) {
-                    console.warn(`[API] Color fetch failed for ${partNum}: ${e.message}`);
                     colorId = 1;
                 }
             }
@@ -63,7 +60,8 @@ module.exports = async (req, res) => {
             console.log(`[API] Pivot ${pivotsTried + 1}: ${partNum} (Color ${colorId})`);
 
             try {
-                const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=20&ordering=-year`;
+                // Fetch MORE sets per pivot (page_size 50)
+                const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=50&ordering=-year`;
                 const response = await axios.get(url);
                 const sets = response.data.results;
 
@@ -72,7 +70,6 @@ module.exports = async (req, res) => {
                         allCandidateSets.set(set.set_num, set);
                     });
                 }
-
                 pivotsTried++;
             } catch (err) {
                 console.error(`[API] Pivot search error for ${partNum}: ${err.message}`);
@@ -85,16 +82,13 @@ module.exports = async (req, res) => {
 
         // Transform and Score
         let suggested_builds = candidateSets.map(set => {
-            // Formula: (UserParts / SetParts) * 100
-            let ratio = (parts.length / set.num_parts);
+            // Formula: (TotalUserParts / SetParts) * 100
+            const totalUserParts = parts.reduce((sum, p) => sum + (p.quantity || 1), 0);
+
+            let ratio = (totalUserParts / set.num_parts);
             if (ratio > 1) ratio = 1;
 
             let score = ratio * 100;
-
-            // Boost for "Creative Mode" (Low Threshold)
-            if (min_match_percentage < 40) {
-                score = score * 2.0; // Significant boost to show incomplete sets
-            }
 
             return {
                 set_id: set.set_num,
@@ -107,22 +101,15 @@ module.exports = async (req, res) => {
             };
         });
 
-        // Filter
-        // 1. Must have at least 10 parts (avoid trivial/empty sets).
-        // 2. Score must be visible. If user has 5 parts and set has 100, score is 5%.
-        //    If threshold is 10%, it's hidden. We should allow lower scores if parts count is low.
-        //    Let's use a dynamic minimum.
+        // Filter: Show ALMOST EVERYTHING.
+        // Just hide sets with < 3 parts (likely errors or minis)
+        suggested_builds = suggested_builds.filter(b => b.num_parts >= 3);
 
-        let dynamicMinScore = 5; // Base minimum
-        if (parts.length < 10) dynamicMinScore = 1; // Show anything non-zero if user has few parts
-
-        suggested_builds = suggested_builds.filter(b => b.num_parts >= 10 && b.match_score >= dynamicMinScore);
-
-        // Sort by Match Score (Highest first)
+        // Sort by Match Score
         suggested_builds.sort((a, b) => b.match_score - a.match_score);
 
         // Limit
-        suggested_builds = suggested_builds.slice(0, 20);
+        suggested_builds = suggested_builds.slice(0, 50);
 
         res.status(200).json({ suggested_builds });
 
