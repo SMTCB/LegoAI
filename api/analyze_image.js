@@ -12,14 +12,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 module.exports = async (req, res) => {
     console.log(`[API] Analyze Image Request received: ${req.method}`);
 
-    // Set CORS headers
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
     if (req.method === 'OPTIONS') {
         res.status(200).end();
@@ -31,15 +27,13 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { images } = req.body; // Expecting an array of base64 strings
+        const { images } = req.body;
 
         if (!images || !Array.isArray(images) || images.length === 0) {
             return res.status(400).json({ error: 'No images provided' });
         }
 
-        console.log(`[Hybrid Flow] Processing ${images.length} images in parallel...`);
-
-        // Process all images in parallel (Queue Logic: each image is a section)
+        console.log(`[Hybrid Flow] Processing ${images.length} images...`);
         const allParts = [];
 
         await Promise.all(images.map(async (imgBase64, index) => {
@@ -51,11 +45,7 @@ module.exports = async (req, res) => {
             }
         }));
 
-        console.log(`[Hybrid Flow] Total parts found across batch: ${allParts.length}`);
-
-        res.json({
-            identified_parts: allParts
-        });
+        res.json({ identified_parts: allParts });
 
     } catch (error) {
         console.error('Server Image Error:', error);
@@ -63,25 +53,16 @@ module.exports = async (req, res) => {
     }
 };
 
-// --- Hybrid Logic Helpers ---
-
 async function processSingleImage(base64String, index) {
-    // 1. Prepare Buffer & Metadata
-    // Remove "data:image/jpeg;base64," prefix if present
     const base64Data = base64String.split(',')[1] || base64String;
     const imgBuffer = Buffer.from(base64Data, 'base64');
-
-    // Get metadata for coordinate scaling
     const metadata = await sharp(imgBuffer).metadata();
     const width = metadata.width;
     const height = metadata.height;
 
-    // 2. Call Gemini for Detection (Stage 1)
     console.log(`[Image ${index}] Stage 1: Gemini Detection...`);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // Prompt asking for JSON list + bounding boxes
-    // UPDATED PROMPT: More aggressive for piles
     const prompt = `
     Analyze this image of a LEGO pile.
     Your task is to identify EVERY SINGLE visible Lego brick, plate, tile, or element.
@@ -94,58 +75,45 @@ async function processSingleImage(base64String, index) {
     5. For each part, provide a "name" (e.g. "red brick 2x4") and "box_2d" [ymin, xmin, ymax, xmax].
     
     Return a strictly valid JSON object.
-    Example JSON:
-    {
-      "parts": [
-        { "name": "Blue Plate 1x2", "ymin": 100, "xmin": 200, "ymax": 150, "xmax": 300, "confidence": 95 }
-      ]
-    }
     `;
 
     const result = await model.generateContent([
         prompt,
-        {
-            inlineData: {
-                data: base64Data,
-                mimeType: "image/jpeg"
-            }
-        }
+        { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
     ]);
 
     const geminiText = result.response.text();
     const geminiParts = parseGeminiJson(geminiText);
     console.log(`[Image ${index}] Gemini found ${geminiParts.length} candidates.`);
 
-    // 3. Verify ALL Parts with Brickognize (Stage 2)
-    // We FORCE Brickognize because Gemini cannot reliably provide Part IDs (part_num).
-    // Valid Part IDs are required for Rebrickable matching.
-
     const verifiedParts = await Promise.all(geminiParts.map(async (part) => {
-        // Validation check for bounding box
-        if (part.ymin === undefined || part.xmin === undefined || part.ymax === undefined || part.xmax === undefined) {
-            // No bbox, can't crop. Returns a generic part. (Won't match builds easily).
+        if (part.ymin === undefined || part.xmin === undefined) {
             return {
                 ...part,
                 quantity: 1,
                 source: 'gemini_no_bbox',
-                part_num: null, // Critical: No ID
+                part_num: null,
                 part_img_url: null
             };
         }
 
+        let cropBase64 = null;
+        let cropBuffer = null;
+
         try {
-            // Calculate pixel coordinates (ensure valid range)
             const left = Math.max(0, Math.floor((part.xmin / 1000) * width));
             const top = Math.max(0, Math.floor((part.ymin / 1000) * height));
             const w = Math.min(width - left, Math.floor(((part.xmax - part.xmin) / 1000) * width));
             const h = Math.min(height - top, Math.floor(((part.ymax - part.ymin) / 1000) * height));
 
-            if (w <= 10 || h <= 10) return { ...part, quantity: 1, source: 'gemini_small_bbox' }; // Too small
+            if (w <= 10 || h <= 10) return { ...part, quantity: 1, source: 'gemini_small_bbox' };
 
-            // Crop
-            const cropBuffer = await sharp(imgBuffer)
+            // Generate Crop
+            cropBuffer = await sharp(imgBuffer)
                 .extract({ left, top, width: w, height: h })
                 .toBuffer();
+
+            cropBase64 = `data:image/jpeg;base64,${cropBuffer.toString('base64')}`;
 
             // Call Brickognize
             const form = new FormData();
@@ -158,36 +126,14 @@ async function processSingleImage(base64String, index) {
             const topMatch = brickRes.data.items?.[0];
 
             if (topMatch) {
-                // We use the Brickognize result as the Source of Truth for ID
-                // Even if score is somewhat low, it's better than Gemini's "Red Brick".
-                // We accept anything > 30% as a "best guess" for ID.
                 console.log(`[Image ${index}] Brickognize ID: "${part.name}" -> "${topMatch.name}" (${(topMatch.score * 100).toFixed(0)}%) [${topMatch.id}]`);
 
-                // Try to map color from Gemini name to Rebrickable ID
                 let colorId = null;
                 const nameLower = part.name.toLowerCase();
                 const colorMap = {
-                    'black': 0,
-                    'blue': 1,
-                    'green': 2,
-                    'teal': 3, // Dark Turquoise
-                    'red': 5,
-                    'dark pink': 26,
-                    'pink': 23,
-                    'brown': 8,
-                    'light gray': 9,
-                    'dark gray': 10,
-                    'gray': 71, // Assume Light Bluish Gray
-                    'yellow': 14,
-                    'white': 15,
-                    'orange': 4,
-                    'tan': 19,
-                    'purple': 24,
-                    'lime': 27,
-                    'gold': 294, // Pearl Gold
-                    'silver': 297, // Pearl Silver
-                    'trans-clear': 12,
-                    'clear': 12
+                    'black': 0, 'blue': 1, 'green': 2, 'teal': 3, 'red': 5, 'dark pink': 26, 'pink': 23, 'brown': 8,
+                    'light gray': 9, 'dark gray': 10, 'gray': 71, 'yellow': 14, 'white': 15, 'orange': 4, 'tan': 19,
+                    'purple': 24, 'lime': 27, 'gold': 294, 'silver': 297, 'trans-clear': 12, 'clear': 12
                 };
 
                 for (const [colorName, id] of Object.entries(colorMap)) {
@@ -197,16 +143,13 @@ async function processSingleImage(base64String, index) {
                     }
                 }
 
-                // Prefer Rebrickable LDraw Renders (Clean PNGs) if we have a valid color
-                // Fallback to Rebrickable White (15) if color is unknown (Better than WebP often)
-                // But keep original Brickognize URL as backup in case Rebrickable 404s
                 let partImgUrl = topMatch.img_url;
-                let backupImgUrl = topMatch.img_url;
+                // USE CROP AS BACKUP!
+                let backupImgUrl = cropBase64;
 
                 if (colorId !== null) {
                     partImgUrl = `https://cdn.rebrickable.com/media/parts/ldraw/${colorId}/${topMatch.id}.png`;
                 } else {
-                    // Try Default White (15) as primary guessing
                     partImgUrl = `https://cdn.rebrickable.com/media/parts/ldraw/15/${topMatch.id}.png`;
                 }
 
@@ -227,12 +170,15 @@ async function processSingleImage(base64String, index) {
             console.warn(`[Image ${index}] Brickognize failed for part:`, verErr.message);
         }
 
-        // Fallback: Return Gemini part (No ID)
+        // FAILURE FALLBACK
+        // Still return the part, but use the CROP as the main image so user sees something!
         return {
             ...part,
             quantity: 1,
             source: 'gemini_failed_verification',
-            part_num: null
+            part_num: null, // No ID found
+            part_img_url: cropBase64, // SHOW THE CROP!
+            backup_img_url: null
         };
     }));
 
@@ -251,7 +197,6 @@ function parseGeminiJson(text) {
         const parsed = JSON.parse(jsonStr);
         return parsed.parts || [];
     } catch (e) {
-        console.error("Gemini JSON Parse Error:", e);
         return [];
     }
 }
