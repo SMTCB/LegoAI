@@ -90,6 +90,12 @@ async function processSingleImage(base64String, index) {
     - "confidence": Your confidence (0-100).
     
     Do not include any explanation, only the JSON.
+    Example JSON:
+    {
+      "parts": [
+        { "name": "Blue Plate 1x2", "ymin": 100, "xmin": 200, "ymax": 150, "xmax": 300, "confidence": 95 }
+      ]
+    }
     `;
 
     const result = await model.generateContent([

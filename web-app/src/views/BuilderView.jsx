@@ -189,7 +189,7 @@ export default function BuilderView({ onHome }) {
     }
 
     // 5. Main Scanning View (Camera) - Polished
-    const showCamera = currentBatchImages.length > 0 || parts.length === 0;
+    const showCamera = (currentBatchImages.length > 0 || parts.length === 0) && scanStatus === 'idle';
 
     return (
         <div className="flex flex-col h-full bg-gray-900 relative overflow-hidden pb-16 font-nunito">
