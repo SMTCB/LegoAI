@@ -1,5 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const axios = require('axios');
+const sharp = require('sharp');
+const FormData = require('form-data');
 
 // Initialize Gemini
 if (!process.env.GEMINI_API_KEY) {
@@ -35,143 +37,24 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'No images provided' });
         }
 
-        // Prepare image parts for Gemini
-        const imageParts = images.map(img => {
-            const base64Data = img.split(',')[1] || img;
-            const mimeType = img.split(';')[0] || 'image/jpeg';
-            const mimeTypeClean = mimeType.split(':')[1] || mimeType;
-            return {
-                inlineData: {
-                    data: base64Data,
-                    mimeType: mimeTypeClean
-                }
-            };
-        });
+        console.log(`[Hybrid Flow] Processing ${images.length} images in parallel...`);
 
-        // Reverting to gemini-2.0-flash (experimental but fast and vibe-capable)
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            safetySettings: [
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
-            ]
-        });
+        // Process all images in parallel (Queue Logic: each image is a section)
+        const allParts = [];
 
-        // Advanced System Prompt with Chain-of-Thought
-        const prompt = `You are an expert LEGO Part Identifier.
-        You are viewing multiple photos of the SAME batch of Lego parts from different angles.
-        
-        CRITICAL PROCESS:
-        1. **Analyze Shape**: Is it a Brick (tall), Plate (flat), or Tile (smooth)?
-        2. **Count Studs**: Count the studs precisely (e.g., 2 rows of 4 studs = 2x4).
-           - Do NOT guess "Brick 2x4" (3001) unless you clearly see 8 studs.
-           - If it is very long, count the length carefully (e.g., 1x6, 1x8, 2x8).
-        3. **Check Features**: Look for clips, holes, slopes, or prints.
-        4. **Deduplicate**: The photos show the SAME parts. Do not double count.
-        
-        RETURN A JSON OBJECT. Format:
-        {
-          "reasoning": "Photo 1 shows a red piece. It is tall (Brick) with 2x4 studs. I also see a blue flat piece...",
-          "identified_parts": [
-            { 
-              "part_num": "3001", 
-              "color_id": 0, 
-              "quantity": 1, 
-              "confidence": 95,
-              "name": "Brick 2x4"
-            }
-          ]
-        }
-        
-        EXAMPLES of Reasoning:
-        - "I see a tall white piece clearly. It is definitely a Brick 1x1." -> confidence: 95.
-        - "I see a flat grey piece, maybe 2x4 or 2x6, it is blurry." -> confidence: 60.
-        - "I see something red, possibly a brick but obstructed." -> confidence: 40.
-
-        If unsure of the ID, use the most descriptive name possible (e.g., "Plate 1x2 with Clip").`;
-
-        const result = await model.generateContent([
-            prompt,
-            ...imageParts
-        ]);
-
-        const responseText = result.response.text();
-        let identifiedParts = [];
-        let reasoning = "No reasoning provided";
-
-        try {
-            // Robust JSON extraction: look for the first '{' and the last '}'
-            const text = responseText.trim();
-            const firstBrace = text.indexOf('{');
-            const lastBrace = text.lastIndexOf('}');
-
-            let cleanJson = text;
-            if (firstBrace !== -1 && lastBrace !== -1) {
-                cleanJson = text.substring(firstBrace, lastBrace + 1);
-            }
-
-            // Fallback: Remove markdown code blocks if the substring method failed
-            if (firstBrace === -1) {
-                cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            }
-
-            const parsed = JSON.parse(cleanJson);
-
-            // Handle both new object format and potential fallback array
-            if (Array.isArray(parsed)) {
-                identifiedParts = parsed;
-            } else if (parsed.identified_parts) {
-                console.log("[AI Reasoning]:", parsed.reasoning); // Log reasoning for debug
-                reasoning = parsed.reasoning;
-                identifiedParts = parsed.identified_parts;
-            } else {
-                identifiedParts = [];
-            }
-
-        } catch (e) {
-            console.error("JSON Parse Error:", e);
-            console.error("Raw Text:", responseText);
-            // Return the raw text to the client so we can see it in the UI error
-            return res.status(500).json({
-                error: 'Failed to parse AI response. The model probably hallucinated valid JSON.',
-                details: e.message,
-                raw_response: responseText.substring(0, 200) + "..."
-            });
-        }
-
-        if (!Array.isArray(identifiedParts)) {
-            identifiedParts = [];
-        }
-
-        // Hydrate with Images from Rebrickable
-        // We use a Promise.allSettled or just Promise.all to ensure we don't fail everything if one image fails
-        const fetchPromises = identifiedParts.map(async (part) => {
+        await Promise.all(images.map(async (imgBase64, index) => {
             try {
-                // Fetch Part Details (for the image)
-                // We default to a placeholder if part_num is missing/invalid
-                if (!part.part_num) return;
-
-                const detailsUrl = `https://rebrickable.com/api/v3/lego/parts/${part.part_num}/colors/${part.color_id}/`;
-                const detailsRes = await axios.get(detailsUrl, {
-                    headers: { 'Authorization': `key ${process.env.REBRICKABLE_API_KEY}` }
-                });
-                const partImgUrl = detailsRes.data.part_img_url;
-                if (!partImgUrl) console.warn(`No image found for ${part.part_num}`);
-                else console.log(`Image found for ${part.part_num}: ${partImgUrl}`);
-                part.part_img_url = partImgUrl;
+                const parts = await processSingleImage(imgBase64, index);
+                allParts.push(...parts);
             } catch (err) {
-                console.warn(`Rebrickable Image lookup failed for ${part.part_num}`, err.message);
+                console.error(`[Image ${index}] Failed:`, err.message);
             }
-        });
+        }));
 
-        await Promise.all(fetchPromises);
+        console.log(`[Hybrid Flow] Total parts found across batch: ${allParts.length}`);
 
-        // Return parts and reasoning for debugging
         res.json({
-            identified_parts: identifiedParts,
-            reasoning: reasoning
+            identified_parts: allParts
         });
 
     } catch (error) {
@@ -179,3 +62,147 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+// --- Hybrid Logic Helpers ---
+
+async function processSingleImage(base64String, index) {
+    // 1. Prepare Buffer & Metadata
+    // Remove "data:image/jpeg;base64," prefix if present
+    const base64Data = base64String.split(',')[1] || base64String;
+    const imgBuffer = Buffer.from(base64Data, 'base64');
+
+    // Get metadata for coordinate scaling
+    const metadata = await sharp(imgBuffer).metadata();
+    const width = metadata.width;
+    const height = metadata.height;
+
+    // 2. Call Gemini for Detection (Stage 1)
+    console.log(`[Image ${index}] Stage 1: Gemini Detection...`);
+    // Use gemini-1.5-flash or gemini-2.0-flash if available. Using 2.0-flash as per previous code.
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    // Prompt asking for JSON list + bounding boxes
+    const prompt = `
+    Analyze this image of a LEGO pile.
+    Return a strictly valid JSON object with a list of ALL detected LEGO parts.
+    For each part, you MUST provide:
+    - "name": A descriptive name (e.g., "Red 2x4 Brick").
+    - "ymin", "xmin", "ymax", "xmax": Bounding box coordinates (normalized 0-1000).
+    - "confidence": Your confidence (0-100).
+    
+    Do not include any explanation, only the JSON.
+    Example JSON:
+    {
+      "parts": [
+        { "name": "Blue Plate 1x2", "ymin": 100, "xmin": 200, "ymax": 150, "xmax": 300, "confidence": 95 }
+      ]
+    }
+    `;
+
+    const result = await model.generateContent([
+        prompt,
+        {
+            inlineData: {
+                data: base64Data,
+                mimeType: "image/jpeg"
+            }
+        }
+    ]);
+
+    const geminiText = result.response.text();
+    const geminiParts = parseGeminiJson(geminiText);
+    console.log(`[Image ${index}] Gemini found ${geminiParts.length} candidates.`);
+
+    // 3. Verify Low Confidence Parts with Brickognize (Stage 2 & 3)
+    // Threshold: Verified logic. If Gemini is < 85% sure, we ask Brickognize.
+    // Also, if part name is very generic ("Lego Part"), ask Brickognize.
+
+    const verifiedParts = await Promise.all(geminiParts.map(async (part) => {
+        // Validation check for bounding box
+        if (part.ymin === undefined || part.xmin === undefined || part.ymax === undefined || part.xmax === undefined) {
+            // No bbox, can't crop. Trust Gemini or discard.
+            return { ...part, quantity: 1, source: 'gemini_no_bbox' };
+        }
+
+        // Check if verification is needed
+        // If confidence is high (>85) AND name is specific, skip.
+        // If confidence is low OR name is generic, verify.
+        const isGeneric = part.name.toLowerCase().includes("lego part") || part.name.toLowerCase().includes("brick");
+        const needsVerification = part.confidence < 85 || (part.confidence < 95 && isGeneric);
+
+        if (needsVerification) {
+            // console.log(`[Image ${index}] Verifying "${part.name}" via Brickognize...`);
+            try {
+                // Calculate pixel coordinates (ensure valid range)
+                const left = Math.max(0, Math.floor((part.xmin / 1000) * width));
+                const top = Math.max(0, Math.floor((part.ymin / 1000) * height));
+                const w = Math.min(width - left, Math.floor(((part.xmax - part.xmin) / 1000) * width));
+                const h = Math.min(height - top, Math.floor(((part.ymax - part.ymin) / 1000) * height));
+
+                if (w <= 10 || h <= 10) return { ...part, quantity: 1, source: 'gemini_small_bbox' }; // Too small
+
+                // Crop
+                const cropBuffer = await sharp(imgBuffer)
+                    .extract({ left, top, width: w, height: h })
+                    .toBuffer();
+
+                // Call Brickognize
+                const form = new FormData();
+                form.append('query_image', cropBuffer, { filename: 'crop.jpg', contentType: 'image/jpeg' });
+
+                const brickRes = await axios.post('https://api.brickognize.com/predict/parts/', form, {
+                    headers: { ...form.getHeaders() }
+                });
+
+                const topMatch = brickRes.data.items?.[0];
+
+                if (topMatch && topMatch.score > 0.6) { // 60% confidence from Brickognize is usually better than Gemini's guess
+                    console.log(`[Image ${index}] Brickognize Override: "${part.name}" -> "${topMatch.name}" (${(topMatch.score * 100).toFixed(0)}%)`);
+
+                    return {
+                        ...part,
+                        name: topMatch.name,
+                        part_num: topMatch.id,
+                        part_img_url: topMatch.img_url,
+                        confidence: Math.round(topMatch.score * 100),
+                        source: 'brickognize',
+                        quantity: 1
+                    };
+                }
+
+            } catch (verErr) {
+                console.warn(`[Image ${index}] Verification failed for part:`, verErr.message);
+                // Fallback to Gemini result on error
+            }
+        }
+
+        // Default: Return Gemini part
+        return {
+            ...part,
+            quantity: 1,
+            source: 'gemini_verified'
+        };
+    }));
+
+    return verifiedParts;
+}
+
+function parseGeminiJson(text) {
+    try {
+        // Robust JSON extraction: look for the first '{' and the last '}'
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+        if (firstBrace === -1 || lastBrace === -1) return [];
+
+        let jsonStr = text.substring(firstBrace, lastBrace + 1);
+        // Clean markdown if present inside the braces (unlikely but possible)
+        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '');
+
+        const parsed = JSON.parse(jsonStr);
+        return parsed.parts || [];
+    } catch (e) {
+        console.error("Gemini JSON Parse Error:", e);
+        // console.error("Raw Text:", text); // Debug only
+        return [];
+    }
+}

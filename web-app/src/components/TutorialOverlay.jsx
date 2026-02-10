@@ -9,8 +9,8 @@ const steps = [
         color: "bg-blue-50 border-blue-200"
     },
     {
-        title: "Multiple Angles",
-        desc: "Take 2-3 photos of the SAME pile from different sides. This helps AI see depth (Bricks vs Plates).",
+        title: "Scan Sections",
+        desc: "If you have a big pile, take photos of different sections. Avoid overlapping to prevent double-counting.",
         icon: <Layers size={48} className="text-lego-yellow" />,
         color: "bg-yellow-50 border-yellow-200"
     },

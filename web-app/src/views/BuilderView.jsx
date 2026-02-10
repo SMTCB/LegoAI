@@ -323,7 +323,7 @@ export default function BuilderView({ onHome }) {
                     )}
 
                     <p className="text-gray-500 font-bold text-sm">
-                        {currentBatchImages.length > 0 ? "Take 2-3 photos of the same pile" : parts.length > 0 ? "Adjust the Vibe, then hit Build!" : "Set your Vibe & Start Scanning!"}
+                        {currentBatchImages.length > 0 ? "Scan different sections of your pile." : parts.length > 0 ? "Adjust the Vibe, then hit Build!" : "Set your Vibe & Start Scanning!"}
                     </p>
                 </div>
 
