@@ -139,7 +139,16 @@ export function AppProvider({ children }) {
         setParts(prev => {
             const updated = [...prev];
             newParts.forEach(newPart => {
-                const index = updated.findIndex(p => p.part_num === newPart.part_num && p.color_id === newPart.color_id);
+                const index = updated.findIndex(p => {
+                    // Strict matching: ID and Color must match.
+                    if (p.part_num && newPart.part_num) {
+                        return p.part_num === newPart.part_num && p.color_id === newPart.color_id;
+                    }
+                    // If ID is missing (unidentified), we only merge if the NAME and COLOR match exactly.
+                    // (e.g. "Red Brick" matches "Red Brick", but not "Blue Wheel")
+                    return p.name === newPart.name && p.color_id === newPart.color_id;
+                });
+
                 if (index >= 0) {
                     updated[index] = { ...updated[index], quantity: updated[index].quantity + newPart.quantity };
                 } else {
