@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, Grid, ArrowLeft, Loader2, HelpCircle, Home, Camera, X, CheckCircle } from 'lucide-react';
+import { Layers, Grid, ArrowLeft, Loader2, HelpCircle, Home, Camera, X, CheckCircle, Plus, BrickWall } from 'lucide-react';
 import CameraCapture from '../components/CameraCapture';
 import BuildCard from '../components/BuildCard';
 import PartsCatalog from '../components/PartsCatalog';
 import TutorialOverlay from '../components/TutorialOverlay';
-import VibeSlider from '../components/VibeSlider';
 import { useApp } from '../context/AppContext';
 
 export default function BuilderView({ onHome }) {
     const {
-        scanStatus, builds, parts,
+        scanStatus, builds, parts, setParts,
         addToBatch, removeImageFromBatch, analyzeBatch, commitBatch, clearCurrentBatch, currentBatchImages, currentBatchResults,
-        findBuilds, clearSession, undoLastScan, removePart, updatePartQuantity, error, resetScan
+        findBuilds, clearSession, undoLastScan, removePart, updatePartQuantity, error, resetScan, setScanStatus, setCurrentBatchImages
     } = useApp();
 
     // 'intro' (landing), 'camera' (scanning), 'parts_list' (review)
@@ -175,10 +174,8 @@ export default function BuilderView({ onHome }) {
                                                 onError={(e) => {
                                                     // Fallback Strategy
                                                     if (p.backup_img_url && e.target.src !== p.backup_img_url) {
-                                                        // Try backup (Brickognize WebP)
                                                         e.target.src = p.backup_img_url;
                                                     } else {
-                                                        // Give up -> Placeholder
                                                         e.target.style.display = 'none';
                                                         e.target.parentNode.classList.add('bg-gray-100');
                                                     }
@@ -218,7 +215,7 @@ export default function BuilderView({ onHome }) {
     const showCamera = (currentBatchImages.length > 0 || parts.length === 0) && scanStatus === 'idle';
 
     return (
-        <div className="flex flex-col h-full bg-gray-900 relative overflow-hidden pb-16 font-nunito">
+        <div className="flex flex-col h-full bg-gray-900 relative overflow-hidden pb-0 font-nunito">
 
             {/* HEADER OVERLAY */}
             <div className="absolute top-0 left-0 right-0 z-30 p-4 flex justify-between items-start pointer-events-none">
@@ -226,7 +223,6 @@ export default function BuilderView({ onHome }) {
                     <button onClick={onHome} className="pointer-events-auto bg-white/90 shadow-lg text-gray-900 p-2.5 rounded-xl hover:bg-white border-2 border-gray-900 transition-colors">
                         <Home size={22} strokeWidth={2.5} />
                     </button>
-                    {/* Only show Back if we are in a sub-mode or have parts */}
                     {(mode !== 'intro' || parts.length > 0) && (
                         <button onClick={() => setMode('intro')} className="pointer-events-auto bg-white/90 shadow-lg text-gray-900 p-2.5 rounded-xl hover:bg-white border-2 border-gray-900 transition-colors">
                             <ArrowLeft size={22} strokeWidth={2.5} />
@@ -257,7 +253,6 @@ export default function BuilderView({ onHome }) {
             </div>
 
             {/* Loading States */}
-            {/* Loading States - High Z-Index to cover everything */}
             {scanStatus === 'scanning' && (
                 <div className="absolute inset-0 z-[100] bg-lego-yellow flex flex-col items-center justify-center text-gray-900">
                     <Loader2 size={64} className="animate-spin text-lego-red mb-6" />
@@ -274,47 +269,23 @@ export default function BuilderView({ onHome }) {
                 </div>
             )}
 
-            {/* FAST TRACK: If we have parts and NO current batch, show "Ready to Build" screen (Hide Camera) */}
+            {/* "Ready to Build" / Analysis Summary Screen */}
             {!showCamera && (
-                <div className="flex-1 bg-lego-yellow flex flex-col items-center justify-center p-6 relative">
+                <div className="flex-1 bg-lego-yellow flex flex-col relative overflow-hidden">
                     <div className="absolute inset-0 opacity-10 pointer-events-none" style={{
                         backgroundImage: 'radial-gradient(#000 2px, transparent 2px)',
                         backgroundSize: '24px 24px'
                     }}></div>
 
-                    <div className="bg-white p-6 rounded-3xl shadow-lego-card border-4 border-gray-900 text-center max-w-sm w-full z-10">
-                        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-green-200">
-                            <CheckCircle size={40} className="text-green-600" />
-                        </div>
-                        <h2 className="text-2xl font-black text-gray-900 mb-2">{parts.length} Parts Scanned</h2>
-                        <p className="text-gray-500 font-bold mb-6">Ready to find something to build?</p>
-
-                        <div className="flex flex-col gap-3 w-full">
-                            <button
-                                onClick={handleFindBuilds}
-                                className={`w-full bg-lego-blue hover:bg-blue-600 text-white py-4 rounded-xl shadow-lego-card border-2 border-gray-900 flex items-center justify-center gap-2 font-black text-xl transition-transform active:scale-95 ${scanStatus === 'matching' ? 'opacity-50 pointer-events-none' : ''}`}
-                            >
-                                <Grid size={24} />
-                                <span>Build It!</span>
-                            </button>
-
-                            <button
-                                onClick={() => { /* Resetting involves clearing? No, just showing camera. */
-                                    // Actually we just need to set showCamera to true? 
-                                    // But showing camera depends on state. 
-                                    // We can just add more images?
-                                    // Or "Clear & Start Over" is enough?
-                                    // The user might want to add more to the existing list.
-                                    // To do that, we need to go back to camera mode.
-                                    // But camera mode is hidden if parts > 0.
-                                    // We need a 'Scanning' mode toggle?
-                                    // For now, let's keep Clear & Start Over. 
-                                    clearSession();
-                                }}
-                                className="text-gray-500 font-bold hover:text-red-500 hover:underline text-sm py-2"
-                            >
-                                Clear & Start Over
-                            </button>
+                    {/* Centered Content */}
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 pb-32">
+                        <div className="bg-white p-8 rounded-3xl shadow-lego-card border-4 border-gray-900 text-center max-w-sm w-full z-10">
+                            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-green-200">
+                                <CheckCircle size={48} className="text-green-600" />
+                            </div>
+                            <h2 className="text-4xl font-black text-gray-900 mb-3">{parts.length} Parts</h2>
+                            <p className="text-gray-500 font-bold text-lg mb-2">Ready to find leads?</p>
+                            <p className="text-gray-400 text-sm font-semibold">Adding more parts helps finding better sets!</p>
                         </div>
                     </div>
                 </div>
@@ -366,39 +337,84 @@ export default function BuilderView({ onHome }) {
                 )}
             </div>
 
-            {/* Bottom Actions Area */}
-            {/* If camera is hidden, we still show the bottom bar for "Build It" but "Vibe Slider" needs context */}
-            <div className={`h-24 bg-gray-900 relative z-30 flex items-center justify-center px-6 border-t-4 border-gray-800`}>
+            {/* Bottom Actions Area - Redesigned for cleaner layout */}
+            <div className="bg-gray-900 border-t-4 border-gray-800 p-6 flex flex-col gap-4 z-40">
 
-                {/* Vibe Slider - Only Visible in Camera Mode or Ready Mode */}
-                <div className="absolute -top-40 w-full max-w-md flex items-end justify-start px-4 pointer-events-none z-40">
-                    <div className={`pointer-events-auto h-64 transition-opacity duration-300 ${currentBatchImages.length > 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                        <VibeSlider
-                            value={vibeLevel}
-                            onChange={setVibeLevel}
-                            isAnalyzing={scanStatus === 'matching'}
-                        />
-                    </div>
-                </div>
+                {/* Vibe Control - Inline & Cleaner */}
+                {!showCamera && parts.length > 0 && (
+                    <div className="flex items-center justify-between bg-gray-800/50 p-4 rounded-xl border-2 border-dashed border-gray-700">
+                        <div className="flex flex-col">
+                            <span className="text-lego-yellow font-black uppercase text-xs tracking-wider">Vibe Check</span>
+                            <span className="text-white font-bold text-lg">{vibeLevel > 80 ? 'Precision' : vibeLevel < 40 ? 'Chaos' : 'Balanced'} Mode</span>
+                        </div>
 
-                {/* Scan More Button (Only if Camera is Hidden) */}
-                {!showCamera && (
-                    <div className="absolute -top-32 w-full max-w-md flex items-end justify-start px-4 pointer-events-none z-40">
-                        <div className="pointer-events-auto pb-8">
-                            <button
-                                onClick={() => { /* Just clearing batch logic triggers camera show */ }}
-                                className="w-16 h-16 bg-white hover:bg-gray-100 text-gray-900 rounded-2xl shadow-lg border-4 border-gray-200 flex items-center justify-center transition-transform hover:scale-105"
-                                aria-label="Scan More"
-                            >
-                                <Camera size={28} />
-                            </button>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="range"
+                                min="10"
+                                max="100"
+                                value={vibeLevel}
+                                onChange={(e) => setVibeLevel(Number(e.target.value))}
+                                className="w-32 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-lego-red"
+                            />
+                            <span className="text-lego-red font-black text-xl w-10 text-right">{vibeLevel}%</span>
                         </div>
                     </div>
                 )}
 
-                <p className="text-gray-500 font-bold text-sm">
-                    {currentBatchImages.length > 0 ? "Scan different sections of your pile." : parts.length > 0 ? "Adjust the Vibe, then hit Build!" : "Set your Vibe & Start Scanning!"}
-                </p>
+                {/* Main Action Button */}
+                {!showCamera && parts.length > 0 && (
+                    <button
+                        onClick={handleFindBuilds}
+                        disabled={scanStatus === 'matching'}
+                        className="w-full bg-lego-blue hover:bg-blue-600 text-white font-black text-2xl py-4 rounded-2xl shadow-[0_6px_0_0_rgba(0,0,0,0.3)] active:shadow-none active:translate-y-1 transition-all flex items-center justify-center gap-3 border-4 border-white/10"
+                    >
+                        {scanStatus === 'matching' ? (
+                            <Loader2 className="animate-spin" />
+                        ) : (
+                            <BrickWall size={28} />
+                        )}
+                        BUILD IT!
+                    </button>
+                )}
+
+                {/* Scan More / Clear Actions */}
+                <div className="flex gap-3">
+                    {!showCamera && (
+                        <button
+                            onClick={() => {
+                                setParts([]);
+                                setScanStatus('idle');
+                                setCurrentBatchImages([]);
+                                setMode('intro');
+                            }}
+                            className="flex-1 bg-gray-800 text-gray-400 font-bold py-3 rounded-xl border-2 border-gray-700 hover:bg-gray-700 hover:text-white transition-colors"
+                        >
+                            Clear All
+                        </button>
+                    )}
+
+                    {!showCamera && (
+                        <button
+                            onClick={() => {
+                                setScanStatus('idle');
+                                setCurrentBatchImages([]);
+                                // Stay in camera mode effectively
+                            }}
+                            className="flex-1 bg-lego-green text-white font-bold py-3 rounded-xl shadow-[0_4px_0_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-1 transition-all flex items-center justify-center gap-2"
+                        >
+                            <Plus size={20} />
+                            Scan More
+                        </button>
+                    )}
+                </div>
+
+                {/* Tips if in camera mode */}
+                {showCamera && (
+                    <p className="text-gray-500 font-bold text-center text-sm">
+                        {currentBatchImages.length > 0 ? "Scan different sections of your pile." : "Point at your Lego pile and tap capture!"}
+                    </p>
+                )}
             </div>
 
         </div>
@@ -408,8 +424,7 @@ export default function BuilderView({ onHome }) {
 function checkError(err) {
     if (!err) return null;
     return (
-        // Raised z-index to 50 to appear above buttons
-        <div className="absolute bottom-48 left-4 right-4 z-50 pointer-events-none">
+        <div className="absolute bottom-48 left-4 right-4 z-[200] pointer-events-none">
             <div className="bg-lego-red text-white p-4 rounded-xl shadow-lg text-center font-black border-4 border-white animate-in slide-in-from-bottom-5 max-w-sm mx-auto pointer-events-auto">
                 <div className="text-lg mb-1">⚠️ Scan Failed</div>
                 <div className="text-sm font-normal opacity-90 break-words">{err}</div>

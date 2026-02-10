@@ -81,15 +81,19 @@ async function processSingleImage(base64String, index) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Prompt asking for JSON list + bounding boxes
+    // UPDATED PROMPT: More aggressive for piles
     const prompt = `
     Analyze this image of a LEGO pile.
-    Return a strictly valid JSON object with a list of ALL detected LEGO parts.
-    For each part, you MUST provide:
-    - "name": A descriptive name (e.g., "Red 2x4 Brick").
-    - "ymin", "xmin", "ymax", "xmax": Bounding box coordinates (normalized 0-1000).
-    - "confidence": Your confidence (0-100).
+    Your task is to identify EVERY SINGLE visible Lego brick, plate, tile, or element.
     
-    Do not include any explanation, only the JSON.
+    CRITICAL INSTRUCTIONS:
+    1. BE AGGRESSIVE. If it looks like a Lego part, include it. Do not group parts.
+    2. Handle PILES. The image may contain a pile of parts. ID as many as distinct objects as possible.
+    3. Ignore the background table/surface. Only return bounding boxes for the plastic Lego parts.
+    4. Return the list in JSON format under the key "parts".
+    5. For each part, provide a "name" (e.g. "red brick 2x4") and "box_2d" [ymin, xmin, ymax, xmax].
+    
+    Return a strictly valid JSON object.
     Example JSON:
     {
       "parts": [
