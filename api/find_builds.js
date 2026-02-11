@@ -62,6 +62,9 @@ module.exports = async (req, res) => {
             try {
                 // Fetch MORE sets per pivot (page_size 50)
                 const url = `https://rebrickable.com/api/v3/lego/parts/${partNum}/colors/${colorId}/sets/?key=${apiKey}&page_size=50&ordering=-year`;
+                // Use a smaller page size per pivot to avoid hitting limits too fast if we have many pivots? 
+                // Actually 50 is fine if we limit pivots.
+
                 const response = await axios.get(url);
                 const sets = response.data.results;
 
@@ -111,7 +114,11 @@ module.exports = async (req, res) => {
         // Limit
         suggested_builds = suggested_builds.slice(0, 50);
 
-        res.status(200).json({ suggested_builds });
+        // RETURN BOTH for backward compatibility with cached/stuck frontends
+        res.status(200).json({
+            suggested_builds,
+            results: suggested_builds
+        });
 
     } catch (error) {
         console.error('Find Builds Error:', error.message);
